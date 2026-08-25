@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env*.local
+*.md
+!README.md
+.cursor
+agent-transcripts
+body.json
+coverage
+npm-debug.log*
+Dockerfile*
+docker-compose*.yml
+.github

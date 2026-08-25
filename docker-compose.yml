@@ -1,0 +1,38 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - jojobuddy-mongo:/data/db
+
+  web:
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      JOJOBUDDY_ROLE: web
+      MONGODB_URI: mongodb://mongo:27017/jojobuddy
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    depends_on:
+      - mongo
+
+  worker:
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    build: .
+    restart: unless-stopped
+    environment:
+      JOJOBUDDY_ROLE: worker
+      MONGODB_URI: mongodb://mongo:27017/jojobuddy
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
+    depends_on:
+      - mongo
+
+volumes:
+  jojobuddy-mongo:
