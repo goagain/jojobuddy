@@ -104,25 +104,26 @@ jobs:
           import re
 
           image = "${{ steps.ver.outputs.image }}"
-          path = Path("docker-compose.nas.yml")
-          text = path.read_text(encoding="utf-8")
-          updated, count = re.subn(
-              r"(image: \$\{JOJOBUDDY_IMAGE:-)[^}]+\}",
-              rf"\1{image}}}",
-              text,
-          )
-          if count < 1:
-              raise SystemExit("No JOJOBUDDY_IMAGE defaults found to update")
-          path.write_text(updated, encoding="utf-8")
-          print(f"Updated {count} image pin(s) -> {image}")
+          pattern = re.compile(r"(image: \$\{JOJOBUDDY_IMAGE:-)[^}]+\}")
+          total = 0
+          for name in ("docker-compose.yml", "docker-compose.nas.yml"):
+              path = Path(name)
+              text = path.read_text(encoding="utf-8")
+              updated, count = pattern.subn(rf"\1{image}}}", text)
+              if count < 1:
+                  raise SystemExit(f"No JOJOBUDDY_IMAGE defaults found in {name}")
+              path.write_text(updated, encoding="utf-8")
+              total += count
+              print(f"{name}: updated {count} image pin(s) -> {image}")
+          print(f"total pins: {total}")
           PY
 
-          grep -n "image:" docker-compose.nas.yml
-          git add docker-compose.nas.yml
+          grep -n "JOJOBUDDY_IMAGE" docker-compose.yml docker-compose.nas.yml
+          git add docker-compose.yml docker-compose.nas.yml
           if git diff --cached --quiet; then
             echo "Compose already pinned to this image"
           else
-            git commit -m "chore(release): pin NAS image to ${{ steps.ver.outputs.tag }}"
+            git commit -m "chore(release): pin compose images to ${{ steps.ver.outputs.tag }}"
           fi
 
           # Tag the pin commit so blob/vX.Y.Z shows versioned compose

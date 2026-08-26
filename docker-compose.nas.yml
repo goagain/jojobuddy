@@ -2,8 +2,7 @@
 # Portainer Stack Compose path: docker-compose.nas.yml
 #
 # main  → always :latest (this file on main)
-# release → CI pins :vX.Y.Z on each Release workflow run
-# Point Portainer Git reference at branch "release" for versioned deploys.
+# release → CI pins :vX.Y.Z on each Release (docker-compose.yml + docker-compose.nas.yml)
 #
 # Env (optional):
 #   CADDY_HOST              default jojobuddy.goagain.me

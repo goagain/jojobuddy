@@ -1,3 +1,6 @@
+# Local / generic compose.
+# main  → always :latest
+# release → CI pins :vX.Y.Z (same as docker-compose.nas.yml)
 services:
   mongo:
     image: mongo:7
