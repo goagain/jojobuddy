@@ -8,7 +8,6 @@ export type ChatMessage = {
 export type LlmRequest = {
   messages: ChatMessage[];
   json?: boolean;
-  temperature?: number;
   runtime: LlmRuntime;
 };
 
@@ -30,9 +29,6 @@ async function chatOllama(request: LlmRequest): Promise<string> {
       model: runtime.modelId,
       stream: false,
       format: request.json ? "json" : undefined,
-      options: {
-        temperature: request.temperature ?? (request.json ? 0.2 : 0.4),
-      },
       messages: request.messages,
     }),
   });
@@ -71,7 +67,6 @@ async function chatOpenAICompatible(request: LlmRequest): Promise<string> {
     headers,
     body: JSON.stringify({
       model: runtime.modelId,
-      temperature: request.temperature ?? (request.json ? 0.2 : 0.4),
       [limitKey]: 10000,
       response_format: request.json ? { type: "json_object" } : undefined,
       messages: request.messages,
@@ -115,7 +110,6 @@ async function chatAnthropic(request: LlmRequest): Promise<string> {
     body: JSON.stringify({
       model: runtime.modelId,
       max_tokens: 10000,
-      temperature: request.temperature ?? (request.json ? 0.2 : 0.4),
       system,
       messages,
     }),

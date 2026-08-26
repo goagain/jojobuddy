@@ -60,7 +60,7 @@ describe("chat OpenAI body", () => {
     return JSON.parse(String(init?.body)) as Record<string, unknown>;
   }
 
-  it("sends max_completion_tokens=10000 for openai kind", async () => {
+  it("sends max_completion_tokens=10000 for openai kind and omits temperature", async () => {
     const fetchMock = stubOk('{"ok":true}');
     await chat({
       runtime: runtime({ kind: "openai", modelId: "gpt-5-mini" }),
@@ -71,10 +71,11 @@ describe("chat OpenAI body", () => {
     const body = requestBody(fetchMock);
     expect(body.max_completion_tokens).toBe(10000);
     expect(body.max_tokens).toBeUndefined();
+    expect(body.temperature).toBeUndefined();
     expect(body.response_format).toEqual({ type: "json_object" });
   });
 
-  it("sends max_tokens=10000 for classic openai_compatible models", async () => {
+  it("sends max_tokens=10000 for classic openai_compatible models and omits temperature", async () => {
     const fetchMock = stubOk("{}");
     await chat({
       runtime: runtime({
@@ -88,6 +89,7 @@ describe("chat OpenAI body", () => {
     const body = requestBody(fetchMock);
     expect(body.max_tokens).toBe(10000);
     expect(body.max_completion_tokens).toBeUndefined();
+    expect(body.temperature).toBeUndefined();
   });
 
   it("sends max_completion_tokens on compatible gateways for gpt-5", async () => {
@@ -104,6 +106,7 @@ describe("chat OpenAI body", () => {
     const body = requestBody(fetchMock);
     expect(body.max_completion_tokens).toBe(10000);
     expect(body.max_tokens).toBeUndefined();
+    expect(body.temperature).toBeUndefined();
   });
 
   it("surfaces provider errors with truncated detail", async () => {
