@@ -2,6 +2,9 @@
   "name": "jojobuddy",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "node scripts/boot.mjs",
     "dev:web": "next dev --turbopack",
@@ -32,7 +35,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/jsdom": "^30.0.0",
-    "@types/node": "^20",
+    "@types/node": "^24.13.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
