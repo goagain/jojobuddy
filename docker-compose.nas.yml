@@ -10,7 +10,7 @@ services:
       - jojobuddy-internal
 
   web:
-    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:v0.0.1}
     restart: unless-stopped
     environment:
       JOJOBUDDY_ROLE: web
@@ -29,7 +29,7 @@ services:
       caddy.reverse_proxy: "{{upstreams 3000}}"
 
   worker:
-    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:v0.0.1}
     restart: unless-stopped
     environment:
       JOJOBUDDY_ROLE: worker
