@@ -5,6 +5,8 @@ export const en = {
   navProfiles: "Profiles",
   navJobs: "Jobs",
   navSettings: "Settings",
+  navGitHub: "GitHub",
+  navSponsor: "Sponsor",
   logout: "Log out",
   language: "Language",
   langEn: "English",

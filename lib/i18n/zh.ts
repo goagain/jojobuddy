@@ -7,6 +7,8 @@ export const zh: Messages = {
   navProfiles: "档案",
   navJobs: "职位",
   navSettings: "设置",
+  navGitHub: "GitHub",
+  navSponsor: "赞助",
   logout: "退出",
   language: "语言",
   langEn: "English",
