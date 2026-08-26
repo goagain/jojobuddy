@@ -16,6 +16,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # Version pins land only here; main keeps :latest
+  RELEASE_BRANCH: release
 
 jobs:
   release:
@@ -87,8 +89,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Update docker-compose.nas.yml image pin
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          EXTRA=()
+          if [ "${{ inputs.prerelease }}" = "true" ]; then
+            EXTRA+=(--prerelease)
+          fi
+          gh release create "${{ steps.ver.outputs.tag }}" \
+            --target "${{ github.sha }}" \
+            --title "${{ steps.ver.outputs.tag }}" \
+            --generate-notes \
+            "${EXTRA[@]}"
+
+      - name: Pin image on release branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # release branch = code being released + versioned compose pin (main stays :latest)
+          git checkout -B "${{ env.RELEASE_BRANCH }}" "${{ github.sha }}"
+
           python3 <<'PY'
           from pathlib import Path
           import re
@@ -106,30 +129,12 @@ jobs:
           path.write_text(updated, encoding="utf-8")
           print(f"Updated {count} image pin(s) -> {image}")
           PY
-          grep -n "image:" docker-compose.nas.yml
 
-      - name: Commit compose pin
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          grep -n "image:" docker-compose.nas.yml
           git add docker-compose.nas.yml
           if git diff --cached --quiet; then
-            echo "No compose changes"
+            echo "Compose already pinned to this image"
           else
             git commit -m "chore(release): pin NAS image to ${{ steps.ver.outputs.tag }}"
-            git push origin HEAD:${{ github.ref_name }}
           fi
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          EXTRA=()
-          if [ "${{ inputs.prerelease }}" = "true" ]; then
-            EXTRA+=(--prerelease)
-          fi
-          gh release create "${{ steps.ver.outputs.tag }}" \
-            --target "${{ github.sha }}" \
-            --title "${{ steps.ver.outputs.tag }}" \
-            --generate-notes \
-            "${EXTRA[@]}"
+          git push --force-with-lease origin "HEAD:${{ env.RELEASE_BRANCH }}"
