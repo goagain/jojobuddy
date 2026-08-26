@@ -3,18 +3,42 @@ import { runWorkJob } from "../lib/work-handlers";
 
 const IDLE_MS = 800;
 let currentJobId: string | null = null;
+let draining = false;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+function beginDrain(signal: string) {
+  if (draining) return;
+  draining = true;
+  console.log(
+    `[worker] ${signal}: drain started (finish current job, stop claiming). id=${workerId()} job=${currentJobId ?? "none"}`,
+  );
+}
+
+process.on("SIGTERM", () => beginDrain("SIGTERM"));
+process.on("SIGINT", () => beginDrain("SIGINT"));
 
 async function loop() {
   console.log(`[worker] ${workerId()} started, waiting for queue`);
   await heartbeat(null);
 
-  setInterval(() => {
+  heartbeatTimer = setInterval(() => {
     void heartbeat(currentJobId);
     if (currentJobId) void touchLock(currentJobId);
   }, 8000);
 
   for (;;) {
+    if (draining && !currentJobId) {
+      console.log(`[worker] drain complete, exiting`);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      process.exit(0);
+    }
+
     try {
+      if (draining) {
+        await delay(IDLE_MS);
+        continue;
+      }
+
       const job = await claimWork();
       if (!job) {
         currentJobId = null;

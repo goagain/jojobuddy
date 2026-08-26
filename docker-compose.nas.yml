@@ -1,5 +1,7 @@
 # NAS / Portainer + Caddy (caddy-docker-proxy)
 # Portainer Stack Compose path: docker-compose.nas.yml
+# Requires Docker Swarm (deploy.replicas). stop_grace_period 5m for worker drain.
+
 services:
   mongo:
     image: mongo:7
@@ -12,6 +14,7 @@ services:
   web:
     image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
     restart: unless-stopped
+    stop_grace_period: 30s
     environment:
       JOJOBUDDY_ROLE: web
       MONGODB_URI: mongodb://mongo:27017/jojobuddy
@@ -31,6 +34,7 @@ services:
   worker:
     image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
     restart: unless-stopped
+    stop_grace_period: 5m
     environment:
       JOJOBUDDY_ROLE: worker
       MONGODB_URI: mongodb://mongo:27017/jojobuddy
@@ -39,6 +43,15 @@ services:
       - mongo
     networks:
       - jojobuddy-internal
+    deploy:
+      mode: replicated
+      replicas: 4
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+      restart_policy:
+        condition: on-failure
 
 networks:
   jojobuddy-internal:

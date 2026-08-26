@@ -16,6 +16,18 @@ const child = spawn(command[0], command.slice(1), {
   env: process.env,
 });
 
-child.on("exit", (code) => {
+function forward(signal) {
+  console.log(`[docker] received ${signal}, forwarding to ${role}`);
+  if (!child.killed) child.kill(signal);
+}
+
+process.on("SIGTERM", () => forward("SIGTERM"));
+process.on("SIGINT", () => forward("SIGINT"));
+
+child.on("exit", (code, signal) => {
+  if (signal) {
+    process.exit(0);
+    return;
+  }
   process.exit(code ?? 0);
 });
