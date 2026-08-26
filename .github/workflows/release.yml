@@ -78,7 +78,6 @@ jobs:
             type=raw,value=${{ steps.ver.outputs.tag }}
             type=raw,value=${{ steps.ver.outputs.version }}
             type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable=${{ inputs.prerelease == false }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
