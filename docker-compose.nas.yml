@@ -7,7 +7,9 @@
 # Env (optional):
 #   CADDY_HOST              default jojobuddy.goagain.me
 #   CADDY_UPSTREAM_PORT     default 3000
-#   REVERSE_PROXY_NETWORK   default reverse_proxy (created if missing; shared by name)
+#   REVERSE_PROXY_NETWORK   default reverse_proxy (must already exist; shared with Caddy)
+#
+# Create once if missing:  docker network create reverse_proxy
 #
 # Requires Docker Swarm (deploy.replicas). stop_grace_period 5m for worker drain.
 
@@ -65,8 +67,9 @@ services:
 networks:
   jojobuddy-internal:
   reverse_proxy:
-    # Not external: create if missing; reuse existing Docker network with this name.
+    # Shared with Caddy — must be external (existing network has no compose ownership labels).
     name: ${REVERSE_PROXY_NETWORK:-reverse_proxy}
+    external: true
 
 volumes:
   jojobuddy-mongo:
