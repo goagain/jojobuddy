@@ -42,13 +42,22 @@ describe("chat OpenAI body", () => {
   });
 
   function stubOk(content = "{}") {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ choices: [{ message: { content } }] }),
-      text: async () => "",
-    }));
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () =>
+        ({
+          ok: true,
+          json: async () => ({ choices: [{ message: { content } }] }),
+          text: async () => "",
+        }) as Response,
+    );
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
+  }
+
+  function requestBody(fetchMock: ReturnType<typeof stubOk>) {
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect(init).toBeDefined();
+    return JSON.parse(String(init?.body)) as Record<string, unknown>;
   }
 
   it("sends max_completion_tokens=10000 for openai kind", async () => {
@@ -59,7 +68,7 @@ describe("chat OpenAI body", () => {
       messages: [{ role: "user", content: "hi" }],
     });
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const body = requestBody(fetchMock);
     expect(body.max_completion_tokens).toBe(10000);
     expect(body.max_tokens).toBeUndefined();
     expect(body.response_format).toEqual({ type: "json_object" });
@@ -76,7 +85,7 @@ describe("chat OpenAI body", () => {
       messages: [{ role: "user", content: "hi" }],
     });
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const body = requestBody(fetchMock);
     expect(body.max_tokens).toBe(10000);
     expect(body.max_completion_tokens).toBeUndefined();
   });
@@ -92,7 +101,7 @@ describe("chat OpenAI body", () => {
       messages: [{ role: "user", content: "hi" }],
     });
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const body = requestBody(fetchMock);
     expect(body.max_completion_tokens).toBe(10000);
     expect(body.max_tokens).toBeUndefined();
   });
