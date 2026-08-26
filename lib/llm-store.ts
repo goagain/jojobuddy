@@ -78,39 +78,30 @@ export async function ensureIndexes() {
 export async function ensureSeed(userId: string) {
   await ensureIndexes();
   const providerCol = await providers();
-  const now = new Date();
-  const existing = await providerCol.findOne({ userId, kind: "mock" });
-  let providerId = existing?._id?.toHexString();
+  const anyProvider = await providerCol.findOne({ userId }, { projection: { _id: 1 } });
+  if (anyProvider) return;
 
-  if (!providerId) {
-    try {
-      const inserted = await providerCol.insertOne({
-        userId,
-        name: "Mock demo",
-        kind: "mock",
-        baseUrl: "local://mock",
-        apiKey: "",
-        createdAt: now,
-        updatedAt: now,
-      });
-      providerId = inserted.insertedId.toHexString();
-    } catch {
-      providerId = (await providerCol.findOne({ userId, kind: "mock" }))?._id?.toHexString();
-    }
+  const now = new Date();
+  let providerId: string | undefined;
+  try {
+    const inserted = await providerCol.insertOne({
+      userId,
+      name: "Mock demo",
+      kind: "mock",
+      baseUrl: "local://mock",
+      apiKey: "",
+      createdAt: now,
+      updatedAt: now,
+    });
+    providerId = inserted.insertedId.toHexString();
+  } catch {
+    providerId = (await providerCol.findOne({ userId, kind: "mock" }))?._id?.toHexString();
   }
 
   if (!providerId) return;
 
-  const modelCol = await models();
-  const modelExists = await modelCol.findOne({
-    userId,
-    providerId,
-    modelId: "star-platinum-mock",
-  });
-  if (modelExists) return;
-
   try {
-    await modelCol.insertOne({
+    await (await models()).insertOne({
       userId,
       providerId,
       label: "star-platinum-mock",
