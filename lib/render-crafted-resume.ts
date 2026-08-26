@@ -84,8 +84,10 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
     lines.push(`## ${labels.experience}`);
     for (const exp of doc.experiences) {
       const time = formatRange(exp.startDate, exp.endDate);
-      const heading = [exp.title, exp.company, time].filter(Boolean).join("  |  ");
-      lines.push(`### ${heading}`);
+      const heading = [exp.title, exp.company].filter(Boolean).join(" — ");
+      lines.push(`### ${heading || "Role"}`);
+      const meta = [time, exp.location].filter(Boolean).join(" · ");
+      if (meta) lines.push(`*${meta}*`);
       for (const bullet of exp.bullets.filter(Boolean)) {
         lines.push(`- ${bullet}`);
       }
@@ -97,8 +99,9 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
     lines.push(`## ${labels.projects}`);
     for (const project of doc.projects) {
       const time = formatRange(project.startDate, project.endDate);
-      const heading = [project.name, project.role, time].filter(Boolean).join("  |  ");
-      lines.push(`### ${heading}`);
+      const heading = [project.name, project.role].filter(Boolean).join(" — ");
+      lines.push(`### ${heading || "Project"}`);
+      if (time) lines.push(`*${time}*`);
       for (const bullet of project.bullets.filter(Boolean)) {
         lines.push(`- ${bullet}`);
       }
@@ -111,8 +114,9 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
     for (const edu of doc.education) {
       const time = formatRange(edu.startDate, edu.endDate);
       const degreeField = [edu.degree, edu.field].filter(Boolean).join(", ");
-      const heading = [edu.school, degreeField, time].filter(Boolean).join("  ·  ");
-      lines.push(`### ${heading}`);
+      const heading = [edu.school, degreeField].filter(Boolean).join(" — ");
+      lines.push(`### ${heading || "Education"}`);
+      if (time) lines.push(`*${time}*`);
       for (const highlight of (edu.highlights ?? []).filter(Boolean)) {
         lines.push(`- ${highlight}`);
       }

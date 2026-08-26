@@ -265,38 +265,90 @@ select option {
   font-weight: 900;
 }
 
+.resume-sheet {
+  color: #1a1208;
+  font-family: var(--font-sans), "Noto Sans SC", "Segoe UI", sans-serif;
+}
+
+.resume-sheet > :first-child {
+  margin-top: 0;
+}
+
 .resume-sheet h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-  letter-spacing: 0.04em;
+  margin: 0 0 6px;
+  font-family: var(--font-display), Cinzel, "Noto Serif SC", serif;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+.resume-sheet h1 + p {
+  margin: 0 0 4px;
+  color: #5a4a38;
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 .resume-sheet h2 {
-  margin: 18px 0 8px;
-  padding-bottom: 4px;
-  border-bottom: 2px solid #1a1208;
-  font-size: 13px;
-  letter-spacing: 0.18em;
+  margin: 16px 0 8px;
+  padding-bottom: 3px;
+  border-bottom: 1.5px solid #1a1208;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .resume-sheet h3 {
-  margin: 12px 0 4px;
+  margin: 12px 0 2px;
   font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
-.resume-sheet p,
-.resume-sheet li {
-  font-size: 13.5px;
+.resume-sheet h3 + p {
+  margin: 0 0 4px;
+  color: #6b5b4a;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.resume-sheet p {
+  margin: 0 0 8px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
 .resume-sheet ul {
-  margin: 0;
-  padding-left: 18px;
+  margin: 2px 0 8px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.resume-sheet li {
+  position: relative;
+  margin: 0 0 4px;
+  padding-left: 1.05em;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Custom bullets — more reliable than list-style with print visibility hacks */
+.resume-sheet li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #1a1208;
+  font-weight: 700;
 }
 
 @media print {
+  @page {
+    margin: 12mm 14mm;
+  }
+
   html,
   body {
     background: white !important;
@@ -319,7 +371,7 @@ select option {
     top: 0 !important;
     width: 100% !important;
     margin: 0 !important;
-    padding: 14mm 16mm !important;
+    padding: 0 !important;
     overflow: visible !important;
     height: auto !important;
     background: white !important;
@@ -334,7 +386,18 @@ select option {
 
   .resume-sheet {
     box-shadow: none !important;
-    color: black !important;
+    color: #111 !important;
     background: white !important;
+  }
+
+  .resume-sheet h1 + p,
+  .resume-sheet h3 + p {
+    color: #333 !important;
+  }
+
+  .resume-sheet li::before {
+    color: #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
