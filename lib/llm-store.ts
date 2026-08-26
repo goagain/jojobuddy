@@ -251,12 +251,26 @@ export async function createProvider(
 export async function updateProvider(
   userId: string,
   id: string,
-  patch: { name?: string; baseUrl?: string; apiKey?: string },
+  patch: { name?: string; baseUrl?: string; apiKey?: string; scope?: LlmScope },
   isAdmin: boolean,
 ): Promise<PublicProvider | null> {
   const existing = await getProviderDoc(id);
   if (!existing) return null;
   assertCanWriteProvider(existing, userId, isAdmin);
+
+  if (patch.scope !== undefined) {
+    if (!isAdmin) throw new LlmAccessError("Only admins can change provider scope");
+    const next = patch.scope === "global" ? "global" : "personal";
+    const _id = new ObjectId(id);
+    const result = await (await providers()).findOneAndUpdate(
+      { _id },
+      { $set: { scope: next, updatedAt: new Date() } },
+      { returnDocument: "after" },
+    );
+    // Cascade: all models under this provider follow provider scope
+    await (await models()).updateMany({ providerId: id }, { $set: { scope: next } });
+    return result ? toPublicProvider(result) : null;
+  }
 
   const _id = new ObjectId(id);
   const $set: Partial<ProviderDoc> = { updatedAt: new Date() };
@@ -290,6 +304,23 @@ export async function listModels(userId: string): Promise<PublicModel[]> {
     providerDocs.flatMap((doc) => (doc._id ? [[doc._id.toHexString(), doc] as const] : [])),
   );
 
+  // Global models may sit on a personal provider owned by an admin — still load that provider.
+  const missingProviderIds = [
+    ...new Set(
+      modelDocs
+        .filter((doc) => docScope(doc) === "global" && !providerMap.has(doc.providerId))
+        .map((doc) => doc.providerId),
+    ),
+  ];
+  if (missingProviderIds.length > 0) {
+    const extras = await (await providers())
+      .find({ _id: { $in: missingProviderIds.map((id) => new ObjectId(id)) } })
+      .toArray();
+    for (const doc of extras) {
+      if (doc._id) providerMap.set(doc._id.toHexString(), doc);
+    }
+  }
+
   const listed = modelDocs.flatMap((doc) => {
     const provider = providerMap.get(doc.providerId);
     if (!provider) return [];
@@ -303,6 +334,32 @@ export async function listModels(userId: string): Promise<PublicModel[]> {
     return a.label.localeCompare(b.label);
   });
   return listed;
+}
+
+export async function updateModelScope(
+  userId: string,
+  id: string,
+  scope: LlmScope,
+  isAdmin: boolean,
+): Promise<PublicModel | null> {
+  if (!isAdmin) throw new LlmAccessError("Only admins can change model sharing");
+  const existing = await getModelDoc(id);
+  if (!existing) return null;
+  assertCanWriteModel(existing, userId, isAdmin);
+
+  const next = scope === "global" ? "global" : "personal";
+  const provider = await getProviderDoc(existing.providerId);
+  if (!provider) throw new Error("Provider not found");
+
+  // Sharing a model requires the provider credentials to be usable; keep provider as-is
+  // (resolveRuntime loads provider by id for global models even if provider is personal).
+
+  const result = await (await models()).findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    { $set: { scope: next } },
+    { returnDocument: "after" },
+  );
+  return result ? toPublicModel(result, provider) : null;
 }
 
 export async function addModels(
@@ -447,10 +504,14 @@ export async function resolveRuntime(userId: string, modelRecordId: string): Pro
   });
   if (!model) throw new Error("Model not imported — add it in Settings first");
 
-  const provider = await (await providers()).findOne({
-    _id: new ObjectId(model.providerId),
-    $or: [{ scope: "global" }, { userId }],
-  });
+  // Global shared models may use a personal provider owned by the admin.
+  const provider =
+    docScope(model) === "global"
+      ? await (await providers()).findOne({ _id: new ObjectId(model.providerId) })
+      : await (await providers()).findOne({
+          _id: new ObjectId(model.providerId),
+          $or: [{ scope: "global" }, { userId }],
+        });
   if (!provider) throw new Error("This model's provider was deleted");
 
   if (PROVIDER_KIND_META[provider.kind].needsKey && !provider.apiKey) {

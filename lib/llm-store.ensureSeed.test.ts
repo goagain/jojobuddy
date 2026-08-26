@@ -37,6 +37,9 @@ function matchesValue(docValue: unknown, expected: unknown): boolean {
   if (expected && typeof expected === "object" && !(expected instanceof ObjectId) && !Array.isArray(expected)) {
     const ops = expected as Record<string, unknown>;
     if ("$ne" in ops) return !sameId(docValue, ops.$ne) && docValue !== ops.$ne;
+    if ("$in" in ops && Array.isArray(ops.$in)) {
+      return ops.$in.some((item) => sameId(docValue, item));
+    }
     if ("$exists" in ops) {
       const exists = docValue !== undefined;
       return ops.$exists ? exists : !exists;
@@ -96,6 +99,16 @@ function makeCollection<T extends { _id: ObjectId }>(store: T[]) {
         }
       }
       return { deletedCount };
+    }),
+    updateMany: vi.fn(async (filter: Record<string, unknown>, update: { $set?: Record<string, unknown> }) => {
+      let modifiedCount = 0;
+      for (const doc of store) {
+        if (matches(doc as unknown as Record<string, unknown>, filter)) {
+          Object.assign(doc, update.$set ?? {});
+          modifiedCount += 1;
+        }
+      }
+      return { modifiedCount };
     }),
     find: vi.fn((filter: Record<string, unknown> = {}) => {
       const filtered = () =>
@@ -311,5 +324,114 @@ describe("global + personal models", () => {
         false,
       ),
     ).rejects.toBeInstanceOf(LlmAccessError);
+  });
+
+  it("admin can share one model while provider stays personal", async () => {
+    const providerId = new ObjectId();
+    const sharedModelId = new ObjectId();
+    const privateModelId = new ObjectId();
+    providerDocs.push({
+      _id: providerId,
+      userId: "admin",
+      name: "Mine",
+      kind: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "sk-admin",
+      scope: "personal",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    modelDocs.push(
+      {
+        _id: sharedModelId,
+        userId: "admin",
+        providerId: providerId.toHexString(),
+        label: "shared",
+        modelId: "gpt-shared",
+        scope: "personal",
+        createdAt: new Date(),
+      },
+      {
+        _id: privateModelId,
+        userId: "admin",
+        providerId: providerId.toHexString(),
+        label: "private",
+        modelId: "gpt-private",
+        scope: "personal",
+        createdAt: new Date(),
+      },
+    );
+
+    const { updateModelScope, listModels, resolveRuntime } = await import("@/lib/llm-store");
+    const updated = await updateModelScope("admin", sharedModelId.toHexString(), "global", true);
+    expect(updated?.scope).toBe("global");
+    expect(providerDocs[0].scope).toBe("personal");
+
+    const listed = await listModels("user-b");
+    expect(listed.some((item) => item.modelId === "gpt-shared" && item.scope === "global")).toBe(true);
+    expect(listed.some((item) => item.modelId === "gpt-private")).toBe(false);
+
+    const runtime = await resolveRuntime("user-b", sharedModelId.toHexString());
+    expect(runtime.apiKey).toBe("sk-admin");
+    expect(runtime.modelId).toBe("gpt-shared");
+  });
+
+  it("promoting a provider cascades all models to global", async () => {
+    const providerId = new ObjectId();
+    providerDocs.push({
+      _id: providerId,
+      userId: "admin",
+      name: "Mine",
+      kind: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "sk-admin",
+      scope: "personal",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    modelDocs.push({
+      _id: new ObjectId(),
+      userId: "admin",
+      providerId: providerId.toHexString(),
+      label: "a",
+      modelId: "a",
+      scope: "personal",
+      createdAt: new Date(),
+    });
+
+    const { updateProvider } = await import("@/lib/llm-store");
+    const provider = await updateProvider("admin", providerId.toHexString(), { scope: "global" }, true);
+    expect(provider?.scope).toBe("global");
+    expect(modelDocs[0].scope).toBe("global");
+  });
+
+  it("non-admin cannot change model scope", async () => {
+    const providerId = new ObjectId();
+    const modelId = new ObjectId();
+    providerDocs.push({
+      _id: providerId,
+      userId: "user-b",
+      name: "Mine",
+      kind: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "sk-b",
+      scope: "personal",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    modelDocs.push({
+      _id: modelId,
+      userId: "user-b",
+      providerId: providerId.toHexString(),
+      label: "m",
+      modelId: "m",
+      scope: "personal",
+      createdAt: new Date(),
+    });
+
+    const { updateModelScope, LlmAccessError } = await import("@/lib/llm-store");
+    await expect(updateModelScope("user-b", modelId.toHexString(), "global", false)).rejects.toBeInstanceOf(
+      LlmAccessError,
+    );
   });
 });

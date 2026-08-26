@@ -232,6 +232,36 @@ export default function SettingsPage() {
     });
   }
 
+  async function setProviderScope(scope: "global" | "personal") {
+    if (!selected || !isAdmin || !canEditSelected) return;
+    const confirmMsg = scope === "global" ? t("shareProviderConfirm") : t("unshareProviderConfirm");
+    if (!window.confirm(confirmMsg)) return;
+    await run("scope-provider", async () => {
+      const response = await fetch(`/api/providers/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? t("saveFail"));
+      await reload();
+    });
+  }
+
+  async function setModelScope(id: string, scope: "global" | "personal") {
+    if (!isAdmin || !canEditSelected) return;
+    await run("scope-model", async () => {
+      const response = await fetch(`/api/models/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? t("saveFail"));
+      await reload();
+    });
+  }
+
   async function toggleAdmin(userId: string, next: boolean) {
     await run("toggle-admin", async () => {
       const response = await fetch(`/api/users/${userId}`, {
@@ -471,6 +501,22 @@ export default function SettingsPage() {
                     >
                       {busy === "save-provider" ? t("saving") : t("saveCreds")}
                     </button>
+                    {isAdmin ? (
+                      <button
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() =>
+                          void setProviderScope(selected.scope === "global" ? "personal" : "global")
+                        }
+                        className="btn"
+                      >
+                        {busy === "scope-provider"
+                          ? t("saving")
+                          : selected.scope === "global"
+                            ? t("unshareProvider")
+                            : t("shareProvider")}
+                      </button>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="text-sm">
@@ -556,6 +602,9 @@ export default function SettingsPage() {
                 <h2 className="mb-3 text-xl font-black">
                   {t("importedCount", { count: selectedModels.length })}
                 </h2>
+                {isAdmin && canEditSelected ? (
+                  <p className="mb-3 text-xs muted">{t("shareModelHint")}</p>
+                ) : null}
                 {selectedModels.length === 0 ? (
                   <p className="text-sm muted">{t("noModelsForProvider")}</p>
                 ) : (
@@ -563,21 +612,43 @@ export default function SettingsPage() {
                     {selectedModels.map((model) => (
                       <li
                         key={model.id}
-                        className="flex items-center justify-between nested px-3 py-2"
+                        className="flex items-center justify-between gap-3 nested px-3 py-2"
                       >
                         <span>
-                          <span className="block text-sm font-black">{model.label}</span>
+                          <span className="block text-sm font-black">
+                            {model.label}
+                            <span className="ml-2 text-[10px] font-black tracking-wider opacity-70">
+                              {model.scope === "global" ? t("scopeGlobal") : t("scopePersonal")}
+                            </span>
+                          </span>
                           <span className="block font-mono text-[11px] muted">{model.modelId}</span>
                         </span>
-                        {canEditSelected ? (
-                          <button
-                            type="button"
-                            className="text-xs font-bold text-rose-700"
-                            onClick={() => void removeModel(model.id)}
-                          >
-                            {t("remove")}
-                          </button>
-                        ) : null}
+                        <span className="flex shrink-0 items-center gap-3">
+                          {isAdmin && canEditSelected ? (
+                            <button
+                              type="button"
+                              disabled={Boolean(busy)}
+                              className="text-xs font-bold"
+                              onClick={() =>
+                                void setModelScope(
+                                  model.id,
+                                  model.scope === "global" ? "personal" : "global",
+                                )
+                              }
+                            >
+                              {model.scope === "global" ? t("unshareModel") : t("shareModel")}
+                            </button>
+                          ) : null}
+                          {canEditSelected ? (
+                            <button
+                              type="button"
+                              className="text-xs font-bold text-rose-700"
+                              onClick={() => void removeModel(model.id)}
+                            >
+                              {t("remove")}
+                            </button>
+                          ) : null}
+                        </span>
                       </li>
                     ))}
                   </ul>

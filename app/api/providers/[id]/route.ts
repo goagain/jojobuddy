@@ -10,6 +10,7 @@ const patchSchema = z.object({
   name: z.string().min(1).optional(),
   baseUrl: z.string().optional(),
   apiKey: z.string().optional(),
+  scope: z.enum(["global", "personal"]).optional(),
 });
 
 type Ctx = { params: Promise<{ id: string }> };
