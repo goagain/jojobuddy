@@ -97,7 +97,22 @@ export function ResultPane({
         </header>
         {result ? (
           <div className="resume-sheet print-resume">
-            <Markdown>{result.resumeMarkdown}</Markdown>
+            <Markdown
+              components={{
+                a: ({ href, children }) => (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="resume-link"
+                  >
+                    {children}
+                  </a>
+                ),
+              }}
+            >
+              {result.resumeMarkdown}
+            </Markdown>
           </div>
         ) : (
           <p className="text-sm leading-6 text-black/60">

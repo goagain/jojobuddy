@@ -42,15 +42,60 @@ function formatRange(start?: string, end?: string) {
   return s || e || "";
 }
 
+/** Turn bare http(s) URLs into Markdown links; skip segments already linked. */
+export function linkifyUrls(text: string): string {
+  return text.replace(/(?<!\]\()https?:\/\/[^\s<>)]+[^\s<>.),;:!?]/gi, (url) => {
+    try {
+      const host = new URL(url).host.replace(/^www\./, "");
+      return `[${host}](${url})`;
+    } catch {
+      return `[${url}](${url})`;
+    }
+  });
+}
+
+/** Turn bare email addresses into mailto Markdown links. */
+export function linkifyEmails(text: string): string {
+  return text.replace(
+    /(?<![(\[])(?<!\]\()[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g,
+    (email) => `[${email}](mailto:${email})`,
+  );
+}
+
+function linkMarkdown(label: string, url: string) {
+  const display = label.trim() || url;
+  return `[${display}](${url})`;
+}
+
+function mailtoLink(email: string) {
+  const trimmed = email.trim();
+  if (!trimmed) return "";
+  return `[${trimmed}](mailto:${trimmed})`;
+}
+
 function contactLine(identity: CraftedResumeDoc["identity"]) {
+  const links = identity.links
+    .map((link) => {
+      const label = (link.label ?? "").trim();
+      const url = (link.url ?? "").trim();
+      if (!url) return "";
+      return linkMarkdown(label, url);
+    })
+    .filter(Boolean);
   const parts = [
     identity.headline,
     identity.location,
-    identity.email,
+    mailtoLink(identity.email),
     identity.phone,
-    ...identity.links.map((link) => (link.label ? `${link.label}: ${link.url}` : link.url)),
-  ].filter(Boolean);
+    ...links,
+  ]
+    .map((part) => (part ?? "").trim())
+    .filter(Boolean);
   return parts.join("  ·  ");
+}
+
+function linkedText(text: string) {
+  return linkifyEmails(linkifyUrls(text.trim()));
 }
 
 /** Assemble Markdown from structured Star Platinum JSON. */
@@ -66,7 +111,7 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
 
   if (doc.summary.trim()) {
     lines.push(`## ${labels.summary}`);
-    lines.push(doc.summary.trim());
+    lines.push(linkedText(doc.summary));
     lines.push("");
   }
 
@@ -75,7 +120,9 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
     for (const group of doc.skills) {
       const items = group.items.filter(Boolean).join(", ");
       if (!items) continue;
-      lines.push(group.category ? `- ${group.category}: ${items}` : `- ${items}`);
+      lines.push(
+        group.category ? `- ${linkedText(`${group.category}: ${items}`)}` : `- ${linkedText(items)}`,
+      );
     }
     lines.push("");
   }
@@ -89,7 +136,7 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
       const meta = [time, exp.location].filter(Boolean).join(" · ");
       if (meta) lines.push(`*${meta}*`);
       for (const bullet of exp.bullets.filter(Boolean)) {
-        lines.push(`- ${bullet}`);
+        lines.push(`- ${linkedText(bullet)}`);
       }
       lines.push("");
     }
@@ -103,7 +150,7 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
       lines.push(`### ${heading || "Project"}`);
       if (time) lines.push(`*${time}*`);
       for (const bullet of project.bullets.filter(Boolean)) {
-        lines.push(`- ${bullet}`);
+        lines.push(`- ${linkedText(bullet)}`);
       }
       lines.push("");
     }
@@ -118,7 +165,7 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
       lines.push(`### ${heading || "Education"}`);
       if (time) lines.push(`*${time}*`);
       for (const highlight of (edu.highlights ?? []).filter(Boolean)) {
-        lines.push(`- ${highlight}`);
+        lines.push(`- ${linkedText(highlight)}`);
       }
       lines.push("");
     }
@@ -128,7 +175,7 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
     if (!extra.items.length) continue;
     lines.push(`## ${extra.label}`);
     for (const item of extra.items.filter(Boolean)) {
-      lines.push(`- ${item}`);
+      lines.push(`- ${linkedText(item)}`);
     }
     lines.push("");
   }

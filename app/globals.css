@@ -344,6 +344,17 @@ select option {
   font-weight: 700;
 }
 
+.resume-sheet a,
+.resume-sheet .resume-link {
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.resume-sheet a:hover {
+  color: #1e40af;
+}
+
 @media print {
   @page {
     margin: 12mm 14mm;
@@ -397,6 +408,14 @@ select option {
 
   .resume-sheet li::before {
     color: #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .resume-sheet a,
+  .resume-sheet .resume-link {
+    color: #1d4ed8 !important;
+    text-decoration: underline !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
