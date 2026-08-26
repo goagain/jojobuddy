@@ -11,7 +11,7 @@ services:
       - jojobuddy-mongo:/data/db
 
   web:
-    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:v0.0.6}
     build: .
     restart: unless-stopped
     ports:
@@ -27,7 +27,7 @@ services:
       - mongo
 
   worker:
-    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:v0.0.6}
     build: .
     restart: unless-stopped
     environment:
