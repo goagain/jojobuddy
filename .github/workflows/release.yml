@@ -89,27 +89,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          EXTRA=()
-          if [ "${{ inputs.prerelease }}" = "true" ]; then
-            EXTRA+=(--prerelease)
-          fi
-          gh release create "${{ steps.ver.outputs.tag }}" \
-            --target "${{ github.sha }}" \
-            --title "${{ steps.ver.outputs.tag }}" \
-            --generate-notes \
-            "${EXTRA[@]}"
-
-      - name: Pin image on release branch
+      - name: Pin compose, tag, and push release branch
+        id: pin
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # release branch = code being released + versioned compose pin (main stays :latest)
+          # release branch = released code + pinned compose (main stays :latest)
           git checkout -B "${{ env.RELEASE_BRANCH }}" "${{ github.sha }}"
 
           python3 <<'PY'
@@ -137,4 +124,23 @@ jobs:
           else
             git commit -m "chore(release): pin NAS image to ${{ steps.ver.outputs.tag }}"
           fi
+
+          # Tag the pin commit so blob/vX.Y.Z shows versioned compose
+          git tag -a "${{ steps.ver.outputs.tag }}" -m "Release ${{ steps.ver.outputs.tag }}"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
           git push --force-with-lease origin "HEAD:${{ env.RELEASE_BRANCH }}"
+          git push origin "${{ steps.ver.outputs.tag }}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXTRA=()
+          if [ "${{ inputs.prerelease }}" = "true" ]; then
+            EXTRA+=(--prerelease)
+          fi
+          gh release create "${{ steps.ver.outputs.tag }}" \
+            --title "${{ steps.ver.outputs.tag }}" \
+            --generate-notes \
+            "${EXTRA[@]}"
