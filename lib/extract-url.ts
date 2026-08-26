@@ -1,9 +1,11 @@
-import { lookup } from "node:dns/promises";
+import { lookup, Resolver } from "node:dns/promises";
+import https from "node:https";
 import { isIP } from "node:net";
 import * as cheerio from "cheerio";
 import { runPageInJsEngine } from "./js-engine";
 
 const BLOCKED_HOSTS = new Set(["localhost", "metadata.google.internal"]);
+const PUBLIC_DNS_SERVERS = ["1.1.1.1", "8.8.8.8"];
 
 function isPrivateIp(ip: string) {
   if (ip === "::1" || ip.startsWith("fe80:") || ip.startsWith("fc") || ip.startsWith("fd")) {
@@ -63,11 +65,100 @@ function htmlToText(html: string) {
   return cleanText($.root().text());
 }
 
-const BROWSER_HEADERS = {
+const BROWSER_HEADERS: Record<string, string> = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
   Accept: "text/html,application/xhtml+xml,application/json",
 };
+
+export function describeFetchError(error: unknown): string {
+  const err = error instanceof Error ? error : new Error(String(error));
+  const cause = (err as Error & { cause?: NodeJS.ErrnoException }).cause;
+  const code = cause?.code ?? (err as NodeJS.ErrnoException).code;
+  const reason = cause?.message ?? err.message;
+  if (code === "ERR_TLS_CERT_ALTNAME_INVALID" || /certificate|altnames/i.test(reason)) {
+    return `TLS certificate mismatch (${reason}). Local DNS may be resolving the host to the wrong IP.`;
+  }
+  if (code) return `${reason} [${code}]`;
+  return reason || "fetch failed";
+}
+
+async function resolvePublicIpv4(hostname: string): Promise<string[]> {
+  const resolver = new Resolver();
+  resolver.setServers(PUBLIC_DNS_SERVERS);
+  const ips = await resolver.resolve4(hostname);
+  return ips.filter((ip) => !isPrivateIp(ip));
+}
+
+function httpsGetViaIp(
+  url: URL,
+  ip: string,
+  headers: Record<string, string>,
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        protocol: "https:",
+        hostname: ip,
+        servername: url.hostname,
+        path: `${url.pathname}${url.search}`,
+        method: "GET",
+        headers: { ...headers, Host: url.hostname },
+        timeout: 30_000,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => {
+          resolve({
+            status: res.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+      },
+    );
+    req.on("error", reject);
+    req.on("timeout", () => {
+      req.destroy(new Error("Request timed out"));
+    });
+    req.end();
+  });
+}
+
+async function fetchText(url: URL, headers: Record<string, string> = BROWSER_HEADERS): Promise<{
+  status: number;
+  body: string;
+}> {
+  try {
+    const response = await fetch(url, { redirect: "follow", headers });
+    return { status: response.status, body: await response.text() };
+  } catch (error) {
+    if (url.protocol !== "https:" || isIP(url.hostname)) {
+      throw new Error(`Cannot fetch ${url.hostname}: ${describeFetchError(error)}`);
+    }
+
+    // Broken local DNS (e.g. UniFi) can point a host at the wrong CDN IP → TLS altname errors.
+    let ips: string[];
+    try {
+      ips = await resolvePublicIpv4(url.hostname);
+    } catch {
+      throw new Error(`Cannot fetch ${url.hostname}: ${describeFetchError(error)}`);
+    }
+    if (ips.length === 0) {
+      throw new Error(`Cannot fetch ${url.hostname}: ${describeFetchError(error)}`);
+    }
+
+    let lastError: unknown = error;
+    for (const ip of ips.slice(0, 3)) {
+      try {
+        return await httpsGetViaIp(url, ip, headers);
+      } catch (fallbackError) {
+        lastError = fallbackError;
+      }
+    }
+    throw new Error(`Cannot fetch ${url.hostname}: ${describeFetchError(lastError)}`);
+  }
+}
 
 async function fetchAppleJob(url: URL): Promise<{
   title: string;
@@ -77,14 +168,22 @@ async function fetchAppleJob(url: URL): Promise<{
   const match = url.pathname.match(/\/details\/(\d+(?:-\d+)?)/i);
   if (!url.hostname.endsWith("apple.com") || !match) return null;
 
-  const response = await fetch(`https://jobs.apple.com/api/v1/jobDetails/${match[1]}`, {
-    headers: BROWSER_HEADERS,
-  });
-  if (!response.ok) return null;
+  const apiUrl = new URL(`https://jobs.apple.com/api/v1/jobDetails/${match[1]}`);
+  let status: number;
+  let body: string;
+  try {
+    ({ status, body } = await fetchText(apiUrl));
+  } catch {
+    return null;
+  }
+  if (status < 200 || status >= 300) return null;
 
-  const payload = (await response.json()) as {
-    res?: Record<string, unknown>;
-  };
+  let payload: { res?: Record<string, unknown> };
+  try {
+    payload = JSON.parse(body) as { res?: Record<string, unknown> };
+  } catch {
+    return null;
+  }
   const job = payload.res;
   if (!job) return null;
 
@@ -183,14 +282,10 @@ export async function fetchJobPage(rawUrl: string): Promise<{
     return { url: url.toString(), ...apple };
   }
 
-  const response = await fetch(url, {
-    redirect: "follow",
-    headers: BROWSER_HEADERS,
-  });
-  if (!response.ok) {
-    throw new Error(`Fetch failed (${response.status})`);
+  const { status, body: html } = await fetchText(url);
+  if (status < 200 || status >= 300) {
+    throw new Error(`Fetch failed (${status})`);
   }
-  const html = await response.text();
   const $ = cheerio.load(html);
 
   const jsonLd = extractJsonLdJob($);
