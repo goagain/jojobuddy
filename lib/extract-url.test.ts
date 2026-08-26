@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeFetchError } from "@/lib/extract-url";
+import { describeFetchError, locationFromJobText } from "@/lib/extract-url";
 
 describe("describeFetchError", () => {
   it("explains TLS altname mismatch", () => {
@@ -17,5 +17,22 @@ describe("describeFetchError", () => {
       cause: Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" }),
     });
     expect(describeFetchError(error)).toContain("ENOTFOUND");
+  });
+});
+
+describe("locationFromJobText", () => {
+  it("reads Location line from parsed job text", () => {
+    const text = [
+      "Software Engineer - Observability",
+      "",
+      "Company: Apple",
+      "Location: Seattle, Washington, United States",
+      "Team: Software and Services",
+    ].join("\n");
+    expect(locationFromJobText(text)).toBe("Seattle, Washington, United States");
+  });
+
+  it("returns empty when no Location line", () => {
+    expect(locationFromJobText("Title\n\nCompany: Acme\n\nDescription")).toBe("");
   });
 });

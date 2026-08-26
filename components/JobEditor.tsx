@@ -69,6 +69,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
       const page = await enqueueWork<{
         title: string;
         company: string;
+        location: string;
         sourceUrl: string;
         sourceText: string;
         parsedText: string;
@@ -82,7 +83,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
       setForm({
         title: page.title || form.title,
         company: page.company || form.company,
-        location: form.location,
+        location: page.location || form.location,
         sourceKind: "url",
         sourceUrl: page.sourceUrl,
         sourceText: page.sourceText,

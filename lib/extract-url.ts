@@ -65,6 +65,32 @@ function htmlToText(html: string) {
   return cleanText($.root().text());
 }
 
+export function locationFromJobText(text: string): string {
+  const match = text.match(/^Location:\s*(.+)$/m);
+  return match?.[1]?.trim() ?? "";
+}
+
+function formatJobLocation(jobLocation: unknown): string {
+  if (!jobLocation) return "";
+  const items = Array.isArray(jobLocation) ? jobLocation : [jobLocation];
+  return items
+    .map((item) => {
+      if (!item || typeof item !== "object") return "";
+      const loc = item as {
+        address?: { addressLocality?: string; addressRegion?: string; addressCountry?: string };
+        name?: string;
+      };
+      if (loc.address) {
+        return [loc.address.addressLocality, loc.address.addressRegion, loc.address.addressCountry]
+          .filter(Boolean)
+          .join(", ");
+      }
+      return loc.name ?? "";
+    })
+    .filter(Boolean)
+    .join(" / ");
+}
+
 const BROWSER_HEADERS: Record<string, string> = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -163,6 +189,7 @@ async function fetchText(url: URL, headers: Record<string, string> = BROWSER_HEA
 async function fetchAppleJob(url: URL): Promise<{
   title: string;
   company: string;
+  location: string;
   text: string;
 } | null> {
   const match = url.pathname.match(/\/details\/(\d+(?:-\d+)?)/i);
@@ -215,12 +242,13 @@ async function fetchAppleJob(url: URL): Promise<{
 
   const text = sections.join("\n\n").trim();
   if (text.length < 40) return null;
-  return { title: title || "Apple job", company: "Apple", text };
+  return { title: title || "Apple job", company: "Apple", location: locations, text };
 }
 
 function extractJsonLdJob($: cheerio.CheerioAPI): {
   title: string;
   company: string;
+  location: string;
   text: string;
 } | null {
   const blocks: unknown[] = [];
@@ -250,7 +278,7 @@ function extractJsonLdJob($: cheerio.CheerioAPI): {
         title?: string;
         description?: string;
         hiringOrganization?: { name?: string } | string;
-        jobLocation?: { address?: { addressLocality?: string; addressRegion?: string } };
+        jobLocation?: unknown;
       }
     | undefined;
 
@@ -261,18 +289,18 @@ function extractJsonLdJob($: cheerio.CheerioAPI): {
       : posting.hiringOrganization?.name ?? "";
   const description = htmlToText(String(posting.description ?? ""));
   if (description.length < 40) return null;
-  const loc = posting.jobLocation?.address;
-  const place = [loc?.addressLocality, loc?.addressRegion].filter(Boolean).join(", ");
+  const place = formatJobLocation(posting.jobLocation);
   const text = [`${posting.title ?? ""}`, company && `Company: ${company}`, place && `Location: ${place}`, description]
     .filter(Boolean)
     .join("\n\n");
-  return { title: posting.title ?? "Job", company, text };
+  return { title: posting.title ?? "Job", company, location: place, text };
 }
 
 export async function fetchJobPage(rawUrl: string): Promise<{
   url: string;
   title: string;
   company: string;
+  location: string;
   text: string;
 }> {
   const url = await assertPublicHttpUrl(rawUrl);
@@ -296,6 +324,7 @@ export async function fetchJobPage(rawUrl: string): Promise<{
   try {
     const rendered = await runPageInJsEngine(html, url.toString());
     if (rendered.text.length >= 40) {
+      const text = rendered.text;
       return {
         url: url.toString(),
         title: rendered.title,
@@ -303,7 +332,8 @@ export async function fetchJobPage(rawUrl: string): Promise<{
           rendered.company ||
           $('meta[property="og:site_name"]').attr("content")?.trim() ||
           "",
-        text: rendered.text,
+        location: locationFromJobText(text),
+        text,
       };
     }
   } catch {
@@ -335,6 +365,7 @@ export async function fetchJobPage(rawUrl: string): Promise<{
     url: url.toString(),
     title: title || "Untitled job",
     company: company || "",
+    location: locationFromJobText(text),
     text,
   };
 }

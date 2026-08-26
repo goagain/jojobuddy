@@ -22,6 +22,7 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
     return {
       title: page.title,
       company: page.company,
+      location: page.location,
       sourceKind: "url",
       sourceUrl: page.url,
       sourceText: page.text,
