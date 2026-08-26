@@ -1,3 +1,4 @@
+import { readResponseJson } from "./http-json";
 import type { LlmRuntime } from "./llm-types";
 
 export type ChatMessage = {
@@ -15,9 +16,19 @@ function trimSlash(url: string) {
   return url.replace(/\/+$/, "");
 }
 
-function openaiBase(url: string) {
-  const base = trimSlash(url);
-  return base.endsWith("/v1") ? base : `${base}/v1`;
+/** Strip pasted endpoint paths; keep a single /v1 base. */
+export function normalizeOpenAiBase(url: string) {
+  let base = trimSlash(url);
+  base = base.replace(/\/chat\/completions\/?$/i, "");
+  if (!base.endsWith("/v1")) base = `${base}/v1`;
+  return base;
+}
+
+export function anthropicMessagesUrl(url: string) {
+  let base = trimSlash(url);
+  base = base.replace(/\/v1\/messages\/?$/i, "");
+  base = base.replace(/\/v1\/?$/i, "");
+  return `${base}/v1/messages`;
 }
 
 async function chatOllama(request: LlmRequest): Promise<string> {
@@ -38,7 +49,10 @@ async function chatOllama(request: LlmRequest): Promise<string> {
     throw new Error(`Ollama failed (${response.status}): ${detail}`);
   }
 
-  const data = (await response.json()) as { message?: { content?: string } };
+  const data = await readResponseJson<{ message?: { content?: string } }>(
+    response,
+    runtime.providerName,
+  );
   return data.message?.content ?? "";
 }
 
@@ -62,7 +76,7 @@ async function chatOpenAICompatible(request: LlmRequest): Promise<string> {
     ? "max_completion_tokens"
     : "max_tokens";
 
-  const response = await fetch(`${openaiBase(runtime.baseUrl)}/chat/completions`, {
+  const response = await fetch(`${normalizeOpenAiBase(runtime.baseUrl)}/chat/completions`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -78,9 +92,9 @@ async function chatOpenAICompatible(request: LlmRequest): Promise<string> {
     throw new Error(`${runtime.providerName} failed (${response.status}): ${detail.slice(0, 400)}`);
   }
 
-  const data = (await response.json()) as {
+  const data = await readResponseJson<{
     choices?: { message?: { content?: string } }[];
-  };
+  }>(response, runtime.providerName);
   return data.choices?.[0]?.message?.content ?? "";
 }
 
@@ -97,10 +111,7 @@ async function chatAnthropic(request: LlmRequest): Promise<string> {
       content: message.content,
     }));
 
-  const base = trimSlash(runtime.baseUrl);
-  const url = base.includes("/v1") ? `${base.replace(/\/v1$/, "")}/v1/messages` : `${base}/v1/messages`;
-
-  const response = await fetch(url, {
+  const response = await fetch(anthropicMessagesUrl(runtime.baseUrl), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -120,9 +131,9 @@ async function chatAnthropic(request: LlmRequest): Promise<string> {
     throw new Error(`Anthropic failed (${response.status}): ${detail.slice(0, 400)}`);
   }
 
-  const data = (await response.json()) as {
+  const data = await readResponseJson<{
     content?: { type: string; text?: string }[];
-  };
+  }>(response, runtime.providerName);
   return data.content?.find((part) => part.type === "text")?.text ?? "";
 }
 
@@ -298,6 +309,9 @@ export async function chat(request: LlmRequest): Promise<string> {
 
 export function extractJsonObject(raw: string): unknown {
   const trimmed = raw.trim();
+  if (trimmed.startsWith("<")) {
+    throw new Error("Model returned HTML instead of JSON — check provider base URL and API key");
+  }
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced?.[1]?.trim() ?? trimmed;
   const start = candidate.indexOf("{");
@@ -305,5 +319,10 @@ export function extractJsonObject(raw: string): unknown {
   if (start === -1 || end === -1 || end <= start) {
     throw new Error("Model did not return parseable JSON");
   }
-  return JSON.parse(candidate.slice(start, end + 1));
+  try {
+    return JSON.parse(candidate.slice(start, end + 1));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid JSON";
+    throw new Error(`Model returned invalid JSON: ${message}`);
+  }
 }

@@ -1,5 +1,6 @@
 import { ObjectId, type Collection, type Filter } from "mongodb";
 import { getDb } from "./db";
+import { readResponseJson } from "./http-json";
 import {
   PROVIDER_KIND_META,
   type CatalogModel,
@@ -478,11 +479,11 @@ export async function fetchCatalog(
     if (!response.ok) {
       throw new Error(`Failed to fetch Ollama models (${response.status})`);
     }
-    const data = (await response.json()) as { models?: { name?: string }[] };
+    const data = await readResponseJson<{ models?: { name?: string }[] }>(response, provider.name);
     return toCatalog(data.models?.map((item) => item.name ?? "") ?? []);
   }
 
-  const base = trimSlash(provider.baseUrl);
+  const base = trimSlash(provider.baseUrl).replace(/\/chat\/completions\/?$/i, "");
   const modelsUrl = base.endsWith("/v1") ? `${base}/models` : `${base}/v1/models`;
   const response = await fetch(modelsUrl, {
     cache: "no-store",
@@ -492,7 +493,7 @@ export async function fetchCatalog(
     const detail = await response.text();
     throw new Error(`Failed to fetch model list (${response.status}): ${detail.slice(0, 240)}`);
   }
-  const data = (await response.json()) as { data?: { id?: string }[] };
+  const data = await readResponseJson<{ data?: { id?: string }[] }>(response, provider.name);
   return toCatalog(data.data?.map((item) => item.id ?? "") ?? []);
 }
 

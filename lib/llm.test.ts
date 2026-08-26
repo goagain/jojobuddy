@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { chat, extractJsonObject, usesMaxCompletionTokens } from "@/lib/llm";
+import { chat, extractJsonObject, normalizeOpenAiBase, usesMaxCompletionTokens } from "@/lib/llm";
 import type { LlmRuntime } from "@/lib/llm-types";
 
 function runtime(partial: Partial<LlmRuntime> & Pick<LlmRuntime, "kind" | "modelId">): LlmRuntime {
@@ -42,12 +42,14 @@ describe("chat OpenAI body", () => {
   });
 
   function stubOk(content = "{}") {
+    const payload = JSON.stringify({ choices: [{ message: { content } }] });
     const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
       async () =>
         ({
           ok: true,
-          json: async () => ({ choices: [{ message: { content } }] }),
-          text: async () => "",
+          status: 200,
+          json: async () => JSON.parse(payload),
+          text: async () => payload,
         }) as Response,
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -126,6 +128,14 @@ describe("chat OpenAI body", () => {
         messages: [{ role: "user", content: "hi" }],
       }),
     ).rejects.toThrow(/OpenAI failed \(400\):/);
+  });
+});
+
+describe("normalizeOpenAiBase", () => {
+  it("strips accidental chat/completions suffix", () => {
+    expect(normalizeOpenAiBase("https://api.openai.com/v1/chat/completions")).toBe(
+      "https://api.openai.com/v1",
+    );
   });
 });
 

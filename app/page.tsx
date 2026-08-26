@@ -10,6 +10,7 @@ import type { JobSummary, ProfileSummary } from "@/lib/entities";
 import { formatHealthHint } from "@/lib/i18n";
 import type { PublicModel } from "@/lib/llm-types";
 import type { CraftResult } from "@/lib/types";
+import { readResponseJson } from "@/lib/http-json";
 import { waitForWorkJob } from "@/lib/wait-work";
 
 const PROFILE_KEY = "jojobuddy.profile-id";
@@ -169,7 +170,7 @@ export default function HomePage() {
           options: { autoRefine, threshold, maxRounds: 3 },
         }),
       });
-      const payload = await response.json();
+      const payload = await readResponseJson<{ error?: string; jobId?: string }>(response, "Craft API");
       if (!response.ok) throw new Error(payload.error ?? t("craftFail"));
       if (!payload.jobId) throw new Error(payload.error ?? t("enqueueFail"));
       const crafted = await waitForWorkJob<CraftResult>(payload.jobId, (step, status) => {
