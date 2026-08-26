@@ -46,6 +46,13 @@ async function chatOllama(request: LlmRequest): Promise<string> {
   return data.message?.content ?? "";
 }
 
+/** Official OpenAI (and some gateways) reject `max_tokens` on newer chat/reasoning models. */
+export function usesMaxCompletionTokens(kind: LlmRuntime["kind"], modelId: string): boolean {
+  if (kind === "openai") return true;
+  const id = modelId.toLowerCase();
+  return /(?:^|[/_.-])(o[1-9]|gpt-5|gpt-4\.1)/.test(id);
+}
+
 async function chatOpenAICompatible(request: LlmRequest): Promise<string> {
   const { runtime } = request;
   const headers: Record<string, string> = {
@@ -55,13 +62,17 @@ async function chatOpenAICompatible(request: LlmRequest): Promise<string> {
     headers.Authorization = `Bearer ${runtime.apiKey}`;
   }
 
+  const limitKey = usesMaxCompletionTokens(runtime.kind, runtime.modelId)
+    ? "max_completion_tokens"
+    : "max_tokens";
+
   const response = await fetch(`${openaiBase(runtime.baseUrl)}/chat/completions`, {
     method: "POST",
     headers,
     body: JSON.stringify({
       model: runtime.modelId,
       temperature: request.temperature ?? (request.json ? 0.2 : 0.4),
-      max_tokens: 4000,
+      [limitKey]: 10000,
       response_format: request.json ? { type: "json_object" } : undefined,
       messages: request.messages,
     }),
@@ -103,7 +114,7 @@ async function chatAnthropic(request: LlmRequest): Promise<string> {
     },
     body: JSON.stringify({
       model: runtime.modelId,
-      max_tokens: 4000,
+      max_tokens: 10000,
       temperature: request.temperature ?? (request.json ? 0.2 : 0.4),
       system,
       messages,
