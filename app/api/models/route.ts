@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { addModels, listModels } from "@/lib/llm-store";
+import { canManageGlobal } from "@/lib/auth";
+import { addModels, listModels, LlmAccessError } from "@/lib/llm-store";
 import { requireUser } from "@/lib/require-user";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +41,13 @@ export async function POST(request: Request) {
         modelId: item.modelId,
         label: item.label || item.modelId,
       })),
+      canManageGlobal(auth.user),
     );
     return NextResponse.json({ models: created });
   } catch (error) {
+    if (error instanceof LlmAccessError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Import failed";
     return NextResponse.json({ error: message }, { status: 400 });
   }

@@ -8,6 +8,7 @@ type ProviderDoc = {
   kind: string;
   baseUrl: string;
   apiKey: string;
+  scope?: "global" | "personal";
   createdAt: Date;
   updatedAt: Date;
 };
@@ -18,6 +19,7 @@ type ModelDoc = {
   providerId: string;
   label: string;
   modelId: string;
+  scope?: "global" | "personal";
   createdAt: Date;
 };
 
@@ -31,16 +33,47 @@ function sameId(left: unknown, right: unknown) {
   return left === right;
 }
 
-function matches(doc: Record<string, unknown>, filter: Record<string, unknown>) {
-  return Object.entries(filter).every(([key, value]) => sameId(doc[key], value));
+function matchesValue(docValue: unknown, expected: unknown): boolean {
+  if (expected && typeof expected === "object" && !(expected instanceof ObjectId) && !Array.isArray(expected)) {
+    const ops = expected as Record<string, unknown>;
+    if ("$ne" in ops) return !sameId(docValue, ops.$ne) && docValue !== ops.$ne;
+    if ("$exists" in ops) {
+      const exists = docValue !== undefined;
+      return ops.$exists ? exists : !exists;
+    }
+    if ("$gt" in ops && docValue instanceof Date && ops.$gt instanceof Date) {
+      return docValue.getTime() > ops.$gt.getTime();
+    }
+  }
+  return sameId(docValue, expected);
+}
+
+function matches(doc: Record<string, unknown>, filter: Record<string, unknown>): boolean {
+  const { $or, ...rest } = filter;
+  const restOk = Object.entries(rest).every(([key, value]) => matchesValue(doc[key], value));
+  if (!restOk) return false;
+  if (Array.isArray($or)) {
+    return ($or as Record<string, unknown>[]).some((branch) => matches(doc, branch));
+  }
+  return true;
 }
 
 function makeCollection<T extends { _id: ObjectId }>(store: T[]) {
   return {
     createIndex: vi.fn(async () => "ok"),
-    findOne: vi.fn(async (filter: Record<string, unknown>) => {
+    findOne: vi.fn(async (filter: Record<string, unknown> = {}) => {
       return store.find((doc) => matches(doc as unknown as Record<string, unknown>, filter)) ?? null;
     }),
+    findOneAndUpdate: vi.fn(
+      async (filter: Record<string, unknown>, update: { $set?: Record<string, unknown> }) => {
+        const doc = store.find((item) =>
+          matches(item as unknown as Record<string, unknown>, filter),
+        );
+        if (!doc) return null;
+        Object.assign(doc, update.$set ?? {});
+        return doc;
+      },
+    ),
     insertOne: vi.fn(async (doc: Omit<T, "_id"> & { _id?: ObjectId }) => {
       const _id = doc._id ?? new ObjectId();
       store.push({ ...doc, _id } as T);
@@ -64,14 +97,16 @@ function makeCollection<T extends { _id: ObjectId }>(store: T[]) {
       }
       return { deletedCount };
     }),
-    find: vi.fn((filter: Record<string, unknown> = {}) => ({
-      sort: () => ({
-        toArray: async () =>
-          store.filter((doc) => matches(doc as unknown as Record<string, unknown>, filter)),
-      }),
-      toArray: async () =>
-        store.filter((doc) => matches(doc as unknown as Record<string, unknown>, filter)),
-    })),
+    find: vi.fn((filter: Record<string, unknown> = {}) => {
+      const filtered = () =>
+        store.filter((doc) => matches(doc as unknown as Record<string, unknown>, filter));
+      return {
+        sort: () => ({
+          toArray: async () => filtered(),
+        }),
+        toArray: async () => filtered(),
+      };
+    }),
   };
 }
 
@@ -92,7 +127,7 @@ describe("ensureSeed", () => {
     vi.resetModules();
   });
 
-  it("creates Mock demo when the user has no providers", async () => {
+  it("creates Mock demo when the user has no personal providers", async () => {
     const { ensureSeed } = await import("@/lib/llm-store");
     await ensureSeed("user-a");
 
@@ -101,18 +136,13 @@ describe("ensureSeed", () => {
       userId: "user-a",
       name: "Mock demo",
       kind: "mock",
-      baseUrl: "local://mock",
+      scope: "personal",
     });
     expect(modelDocs).toHaveLength(1);
-    expect(modelDocs[0]).toMatchObject({
-      userId: "user-a",
-      providerId: providerDocs[0]._id.toHexString(),
-      label: "star-platinum-mock",
-      modelId: "star-platinum-mock",
-    });
+    expect(modelDocs[0].scope).toBe("personal");
   });
 
-  it("does not recreate Mock demo when another provider already exists", async () => {
+  it("does not recreate Mock demo when another personal provider already exists", async () => {
     providerDocs.push({
       _id: new ObjectId(),
       userId: "user-a",
@@ -120,6 +150,7 @@ describe("ensureSeed", () => {
       kind: "openai",
       baseUrl: "https://api.openai.com/v1",
       apiKey: "sk-test",
+      scope: "personal",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -132,61 +163,153 @@ describe("ensureSeed", () => {
     expect(modelDocs).toHaveLength(0);
   });
 
-  it("does not recreate Mock demo after it was deleted while another provider remains", async () => {
+  it("still seeds personal mock when only global providers exist", async () => {
     providerDocs.push({
       _id: new ObjectId(),
-      userId: "user-a",
-      name: "OpenAI",
-      kind: "openai",
-      baseUrl: "https://api.openai.com/v1",
-      apiKey: "sk-test",
+      userId: "admin",
+      name: "Shared Claude",
+      kind: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      apiKey: "sk-admin",
+      scope: "global",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
     const { ensureSeed } = await import("@/lib/llm-store");
     await ensureSeed("user-a");
-    await ensureSeed("user-a");
 
-    expect(providerDocs.filter((doc) => doc.kind === "mock")).toHaveLength(0);
-    expect(providerDocs).toHaveLength(1);
+    expect(providerDocs.filter((doc) => doc.scope === "global")).toHaveLength(1);
+    expect(providerDocs.filter((doc) => doc.userId === "user-a")).toHaveLength(1);
+    expect(providerDocs.find((doc) => doc.userId === "user-a")?.kind).toBe("mock");
   });
 
-  it("recreates Mock demo only after every provider is gone", async () => {
+  it("recreates Mock demo only after every personal provider is gone", async () => {
     const { ensureSeed, deleteProvider } = await import("@/lib/llm-store");
 
     await ensureSeed("user-a");
     const mockId = providerDocs[0]._id.toHexString();
-    expect(providerDocs).toHaveLength(1);
-
-    await deleteProvider("user-a", mockId);
-    expect(providerDocs).toHaveLength(0);
-    expect(modelDocs).toHaveLength(0);
+    await deleteProvider("user-a", mockId, false);
+    expect(providerDocs.filter((doc) => doc.userId === "user-a")).toHaveLength(0);
 
     await ensureSeed("user-a");
-    expect(providerDocs).toHaveLength(1);
-    expect(providerDocs[0].kind).toBe("mock");
-    expect(modelDocs).toHaveLength(1);
+    expect(providerDocs.filter((doc) => doc.userId === "user-a" && doc.kind === "mock")).toHaveLength(
+      1,
+    );
+  });
+});
+
+describe("global + personal models", () => {
+  beforeEach(() => {
+    providerDocs.length = 0;
+    modelDocs.length = 0;
+    vi.resetModules();
   });
 
-  it("scopes seed per user", async () => {
-    const { ensureSeed } = await import("@/lib/llm-store");
-
+  it("listModels merges global models for any user", async () => {
+    const globalProviderId = new ObjectId();
     providerDocs.push({
-      _id: new ObjectId(),
-      userId: "user-a",
-      name: "OpenAI",
+      _id: globalProviderId,
+      userId: "admin",
+      name: "Shared",
       kind: "openai",
       baseUrl: "https://api.openai.com/v1",
-      apiKey: "sk-test",
+      apiKey: "sk-admin",
+      scope: "global",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    modelDocs.push({
+      _id: new ObjectId(),
+      userId: "admin",
+      providerId: globalProviderId.toHexString(),
+      label: "gpt-global",
+      modelId: "gpt-4o",
+      scope: "global",
+      createdAt: new Date(),
+    });
+
+    const { listModels } = await import("@/lib/llm-store");
+    const listed = await listModels("user-b");
+    expect(listed.some((item) => item.modelId === "gpt-4o" && item.scope === "global")).toBe(true);
+    expect(listed.some((item) => item.kind === "mock" && item.scope === "personal")).toBe(true);
+  });
+
+  it("resolveRuntime allows non-owner to use a global model", async () => {
+    const globalProviderId = new ObjectId();
+    const globalModelId = new ObjectId();
+    providerDocs.push({
+      _id: globalProviderId,
+      userId: "admin",
+      name: "Shared",
+      kind: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "sk-admin",
+      scope: "global",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    modelDocs.push({
+      _id: globalModelId,
+      userId: "admin",
+      providerId: globalProviderId.toHexString(),
+      label: "gpt-global",
+      modelId: "gpt-4o",
+      scope: "global",
+      createdAt: new Date(),
+    });
+
+    const { resolveRuntime } = await import("@/lib/llm-store");
+    const runtime = await resolveRuntime("user-b", globalModelId.toHexString());
+    expect(runtime.modelId).toBe("gpt-4o");
+    expect(runtime.apiKey).toBe("sk-admin");
+  });
+
+  it("non-admin cannot delete a global provider", async () => {
+    const globalProviderId = new ObjectId();
+    providerDocs.push({
+      _id: globalProviderId,
+      userId: "admin",
+      name: "Shared",
+      kind: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "sk-admin",
+      scope: "global",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    await ensureSeed("user-b");
+    const { deleteProvider, LlmAccessError } = await import("@/lib/llm-store");
+    await expect(deleteProvider("user-b", globalProviderId.toHexString(), false)).rejects.toBeInstanceOf(
+      LlmAccessError,
+    );
+    expect(providerDocs).toHaveLength(1);
+  });
 
-    expect(providerDocs.filter((doc) => doc.userId === "user-a")).toHaveLength(1);
-    expect(providerDocs.filter((doc) => doc.userId === "user-b")).toHaveLength(1);
-    expect(providerDocs.find((doc) => doc.userId === "user-b")?.kind).toBe("mock");
+  it("admin can create a global provider", async () => {
+    const { createProvider } = await import("@/lib/llm-store");
+    const provider = await createProvider(
+      "admin",
+      {
+        name: "Team Claude",
+        kind: "anthropic",
+        apiKey: "sk-x",
+        scope: "global",
+      },
+      true,
+    );
+    expect(provider.scope).toBe("global");
+    expect(providerDocs[0].scope).toBe("global");
+  });
+
+  it("non-admin cannot create a global provider", async () => {
+    const { createProvider, LlmAccessError } = await import("@/lib/llm-store");
+    await expect(
+      createProvider(
+        "user-b",
+        { name: "Hack", kind: "openai", scope: "global" },
+        false,
+      ),
+    ).rejects.toBeInstanceOf(LlmAccessError);
   });
 });

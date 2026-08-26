@@ -39,6 +39,8 @@ export const PROVIDER_KIND_META: Record<
   },
 };
 
+export type LlmScope = "global" | "personal";
+
 export type PublicProvider = {
   id: string;
   name: string;
@@ -46,6 +48,7 @@ export type PublicProvider = {
   baseUrl: string;
   hasApiKey: boolean;
   apiKeyMasked: string;
+  scope: LlmScope;
 };
 
 export type PublicModel = {
@@ -55,6 +58,7 @@ export type PublicModel = {
   kind: ProviderKind;
   label: string;
   modelId: string;
+  scope: LlmScope;
 };
 
 export type CatalogModel = {

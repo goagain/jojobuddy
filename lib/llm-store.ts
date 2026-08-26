@@ -1,9 +1,10 @@
-import { ObjectId, type Collection } from "mongodb";
+import { ObjectId, type Collection, type Filter } from "mongodb";
 import { getDb } from "./db";
 import {
   PROVIDER_KIND_META,
   type CatalogModel,
   type LlmRuntime,
+  type LlmScope,
   type ProviderKind,
   type PublicModel,
   type PublicProvider,
@@ -16,6 +17,7 @@ export type ProviderDoc = {
   kind: ProviderKind;
   baseUrl: string;
   apiKey: string;
+  scope?: LlmScope;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -26,6 +28,7 @@ export type ModelDoc = {
   providerId: string;
   label: string;
   modelId: string;
+  scope?: LlmScope;
   createdAt: Date;
 };
 
@@ -40,6 +43,18 @@ const ANTHROPIC_CATALOG = [
   "claude-3-5-haiku-latest",
   "claude-3-opus-latest",
 ];
+
+export function docScope(doc: { scope?: LlmScope }): LlmScope {
+  return doc.scope === "global" ? "global" : "personal";
+}
+
+export class LlmAccessError extends Error {
+  status: number;
+  constructor(message: string, status = 403) {
+    super(message);
+    this.status = status;
+  }
+}
 
 function maskKey(apiKey: string): string {
   if (!apiKey) return "No key needed";
@@ -56,6 +71,19 @@ function toPublicProvider(doc: ProviderDoc): PublicProvider {
     baseUrl: doc.baseUrl,
     hasApiKey: Boolean(doc.apiKey),
     apiKeyMasked: maskKey(doc.apiKey),
+    scope: docScope(doc),
+  };
+}
+
+function toPublicModel(doc: ModelDoc, provider: ProviderDoc): PublicModel {
+  return {
+    id: doc._id?.toHexString() ?? "",
+    providerId: doc.providerId,
+    providerName: provider.name,
+    kind: provider.kind,
+    label: doc.label,
+    modelId: doc.modelId,
+    scope: docScope(doc),
   };
 }
 
@@ -67,19 +95,40 @@ async function models(): Promise<Collection<ModelDoc>> {
   return (await getDb()).collection<ModelDoc>("llm_models");
 }
 
+function accessibleProviderFilter(userId: string): Filter<ProviderDoc> {
+  return {
+    $or: [{ scope: "global" }, { userId, scope: { $ne: "global" } }],
+  };
+}
+
+/** Personal providers for a user (excludes global even if userId matches creator). */
+function personalProviderFilter(userId: string): Filter<ProviderDoc> {
+  return { userId, scope: { $ne: "global" } };
+}
+
+function accessibleModelFilter(userId: string): Filter<ModelDoc> {
+  return {
+    $or: [{ scope: "global" }, { userId, scope: { $ne: "global" } }],
+  };
+}
+
 export async function ensureIndexes() {
   const modelCol = await models();
   await Promise.all([
     modelCol.createIndex({ userId: 1, providerId: 1, modelId: 1 }, { unique: true }),
+    modelCol.createIndex({ scope: 1, providerId: 1, modelId: 1 }),
     (await providers()).createIndex({ userId: 1, createdAt: 1 }),
+    (await providers()).createIndex({ scope: 1, createdAt: 1 }),
   ]);
 }
 
 export async function ensureSeed(userId: string) {
   await ensureIndexes();
   const providerCol = await providers();
-  const anyProvider = await providerCol.findOne({ userId }, { projection: { _id: 1 } });
-  if (anyProvider) return;
+  const anyPersonal = await providerCol.findOne(personalProviderFilter(userId), {
+    projection: { _id: 1 },
+  });
+  if (anyPersonal) return;
 
   const now = new Date();
   let providerId: string | undefined;
@@ -90,12 +139,15 @@ export async function ensureSeed(userId: string) {
       kind: "mock",
       baseUrl: "local://mock",
       apiKey: "",
+      scope: "personal",
       createdAt: now,
       updatedAt: now,
     });
     providerId = inserted.insertedId.toHexString();
   } catch {
-    providerId = (await providerCol.findOne({ userId, kind: "mock" }))?._id?.toHexString();
+    providerId = (
+      await providerCol.findOne({ userId, kind: "mock", scope: { $ne: "global" } })
+    )?._id?.toHexString();
   }
 
   if (!providerId) return;
@@ -106,6 +158,7 @@ export async function ensureSeed(userId: string) {
       providerId,
       label: "star-platinum-mock",
       modelId: "star-platinum-mock",
+      scope: "personal",
       createdAt: now,
     });
   } catch {
@@ -113,10 +166,55 @@ export async function ensureSeed(userId: string) {
   }
 }
 
+export async function getProviderDoc(id: string): Promise<ProviderDoc | null> {
+  return (await providers()).findOne({ _id: new ObjectId(id) });
+}
+
+export async function getModelDoc(id: string): Promise<ModelDoc | null> {
+  return (await models()).findOne({ _id: new ObjectId(id) });
+}
+
+export function assertCanWriteProvider(doc: ProviderDoc, userId: string, isAdmin: boolean) {
+  const scope = docScope(doc);
+  if (scope === "global") {
+    if (!isAdmin) throw new LlmAccessError("Only admins can change global providers");
+    return;
+  }
+  if (doc.userId !== userId) throw new LlmAccessError("Provider not found", 404);
+}
+
+export function assertCanWriteModel(doc: ModelDoc, userId: string, isAdmin: boolean) {
+  const scope = docScope(doc);
+  if (scope === "global") {
+    if (!isAdmin) throw new LlmAccessError("Only admins can change global models");
+    return;
+  }
+  if (doc.userId !== userId) throw new LlmAccessError("Model not found", 404);
+}
+
 export async function listProviders(userId: string): Promise<PublicProvider[]> {
   await ensureSeed(userId);
-  const docs = await (await providers()).find({ userId }).sort({ createdAt: 1 }).toArray();
-  return docs.map(toPublicProvider);
+  const docs = await (await providers())
+    .find(accessibleProviderFilter(userId))
+    .sort({ createdAt: 1 })
+    .toArray();
+  // Deduplicate if admin owns a global row that also matches personal filter loosely
+  const seen = new Set<string>();
+  const ordered: ProviderDoc[] = [];
+  for (const doc of docs) {
+    const id = doc._id?.toHexString();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(doc);
+  }
+  // Show global first, then personal
+  ordered.sort((a, b) => {
+    const sa = docScope(a) === "global" ? 0 : 1;
+    const sb = docScope(b) === "global" ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+  return ordered.map(toPublicProvider);
 }
 
 export async function createProvider(
@@ -126,8 +224,14 @@ export async function createProvider(
     kind: ProviderKind;
     baseUrl?: string;
     apiKey?: string;
+    scope?: LlmScope;
   },
+  isAdmin: boolean,
 ): Promise<PublicProvider> {
+  const scope: LlmScope = input.scope === "global" ? "global" : "personal";
+  if (scope === "global" && !isAdmin) {
+    throw new LlmAccessError("Only admins can create global providers");
+  }
   const now = new Date();
   const doc: Omit<ProviderDoc, "_id"> = {
     userId,
@@ -135,6 +239,7 @@ export async function createProvider(
     kind: input.kind,
     baseUrl: (input.baseUrl || PROVIDER_KIND_META[input.kind].defaultBaseUrl).trim(),
     apiKey: input.apiKey?.trim() ?? "",
+    scope,
     createdAt: now,
     updatedAt: now,
   };
@@ -147,61 +252,70 @@ export async function updateProvider(
   userId: string,
   id: string,
   patch: { name?: string; baseUrl?: string; apiKey?: string },
+  isAdmin: boolean,
 ): Promise<PublicProvider | null> {
+  const existing = await getProviderDoc(id);
+  if (!existing) return null;
+  assertCanWriteProvider(existing, userId, isAdmin);
+
   const _id = new ObjectId(id);
   const $set: Partial<ProviderDoc> = { updatedAt: new Date() };
   if (patch.name !== undefined) $set.name = patch.name.trim();
   if (patch.baseUrl !== undefined) $set.baseUrl = patch.baseUrl.trim();
   if (patch.apiKey !== undefined && patch.apiKey !== "") $set.apiKey = patch.apiKey.trim();
 
-  const result = await (await providers()).findOneAndUpdate(
-    { _id, userId },
-    { $set },
-    { returnDocument: "after" },
-  );
+  const result = await (await providers()).findOneAndUpdate({ _id }, { $set }, { returnDocument: "after" });
   return result ? toPublicProvider(result) : null;
 }
 
-export async function deleteProvider(userId: string, id: string): Promise<boolean> {
-  const result = await (await providers()).deleteOne({ _id: new ObjectId(id), userId });
-  await (await models()).deleteMany({ userId, providerId: id });
+export async function deleteProvider(userId: string, id: string, isAdmin: boolean): Promise<boolean> {
+  const existing = await getProviderDoc(id);
+  if (!existing) return false;
+  assertCanWriteProvider(existing, userId, isAdmin);
+
+  const result = await (await providers()).deleteOne({ _id: new ObjectId(id) });
+  if (result.deletedCount > 0) {
+    await (await models()).deleteMany({ providerId: id });
+  }
   return result.deletedCount > 0;
 }
 
 export async function listModels(userId: string): Promise<PublicModel[]> {
   await ensureSeed(userId);
   const [providerDocs, modelDocs] = await Promise.all([
-    (await providers()).find({ userId }).toArray(),
-    (await models()).find({ userId }).sort({ createdAt: 1 }).toArray(),
+    (await providers()).find(accessibleProviderFilter(userId)).toArray(),
+    (await models()).find(accessibleModelFilter(userId)).sort({ createdAt: 1 }).toArray(),
   ]);
   const providerMap = new Map(
     providerDocs.flatMap((doc) => (doc._id ? [[doc._id.toHexString(), doc] as const] : [])),
   );
 
-  return modelDocs.flatMap((doc) => {
+  const listed = modelDocs.flatMap((doc) => {
     const provider = providerMap.get(doc.providerId);
     if (!provider) return [];
-    return [
-      {
-        id: doc._id?.toHexString() ?? "",
-        providerId: doc.providerId,
-        providerName: provider.name,
-        kind: provider.kind,
-        label: doc.label,
-        modelId: doc.modelId,
-      },
-    ];
+    return [toPublicModel(doc, provider)];
   });
+
+  listed.sort((a, b) => {
+    const sa = a.scope === "global" ? 0 : 1;
+    const sb = b.scope === "global" ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    return a.label.localeCompare(b.label);
+  });
+  return listed;
 }
 
 export async function addModels(
   userId: string,
   providerId: string,
   items: { label: string; modelId: string }[],
+  isAdmin: boolean,
 ): Promise<PublicModel[]> {
-  const provider = await (await providers()).findOne({ _id: new ObjectId(providerId), userId });
+  const provider = await getProviderDoc(providerId);
   if (!provider) throw new Error("Provider not found");
+  assertCanWriteProvider(provider, userId, isAdmin);
 
+  const scope = docScope(provider);
   const col = await models();
   const now = new Date();
   const created: PublicModel[] = [];
@@ -216,16 +330,23 @@ export async function addModels(
         providerId,
         label,
         modelId,
+        scope,
         createdAt: now,
       });
-      created.push({
-        id: result.insertedId.toHexString(),
-        providerId,
-        providerName: provider.name,
-        kind: provider.kind,
-        label,
-        modelId,
-      });
+      created.push(
+        toPublicModel(
+          {
+            _id: result.insertedId,
+            userId,
+            providerId,
+            label,
+            modelId,
+            scope,
+            createdAt: now,
+          },
+          provider,
+        ),
+      );
     } catch {
       // duplicate providerId + modelId
     }
@@ -234,8 +355,11 @@ export async function addModels(
   return created;
 }
 
-export async function deleteModel(userId: string, id: string): Promise<boolean> {
-  const result = await (await models()).deleteOne({ _id: new ObjectId(id), userId });
+export async function deleteModel(userId: string, id: string, isAdmin: boolean): Promise<boolean> {
+  const existing = await getModelDoc(id);
+  if (!existing) return false;
+  assertCanWriteModel(existing, userId, isAdmin);
+  const result = await (await models()).deleteOne({ _id: new ObjectId(id) });
   return result.deletedCount > 0;
 }
 
@@ -243,12 +367,34 @@ function trimSlash(url: string) {
   return url.replace(/\/+$/, "");
 }
 
-export async function fetchCatalog(userId: string, providerId: string): Promise<CatalogModel[]> {
-  const provider = await (await providers()).findOne({ _id: new ObjectId(providerId), userId });
+export async function fetchCatalog(
+  userId: string,
+  providerId: string,
+  isAdmin: boolean,
+): Promise<CatalogModel[]> {
+  const provider = await getProviderDoc(providerId);
   if (!provider) throw new Error("Provider not found");
 
+  // Read: any user may fetch catalog for accessible providers; write/import gated elsewhere
+  const scope = docScope(provider);
+  if (scope === "personal" && provider.userId !== userId) {
+    throw new Error("Provider not found");
+  }
+  if (scope === "global" && !isAdmin) {
+    // Non-admin can view imported list status but catalog fetch for import is admin-only in UI;
+    // still allow read of catalog for transparency? Plan says non-admin read-only — hide import.
+    // Allow fetch for display; import blocked by addModels.
+  }
+
   const imported = new Set(
-    (await (await models()).find({ userId, providerId }).toArray()).map((doc) => doc.modelId),
+    (
+      await (await models())
+        .find({
+          providerId,
+          $or: [{ scope: "global" }, { userId, scope: { $ne: "global" } }, { userId, scope: { $exists: false } }],
+        })
+        .toArray()
+    ).map((doc) => doc.modelId),
   );
 
   const toCatalog = (names: string[]): CatalogModel[] =>
@@ -283,9 +429,7 @@ export async function fetchCatalog(userId: string, providerId: string): Promise<
   const modelsUrl = base.endsWith("/v1") ? `${base}/models` : `${base}/v1/models`;
   const response = await fetch(modelsUrl, {
     cache: "no-store",
-    headers: provider.apiKey
-      ? { Authorization: `Bearer ${provider.apiKey}` }
-      : undefined,
+    headers: provider.apiKey ? { Authorization: `Bearer ${provider.apiKey}` } : undefined,
   });
   if (!response.ok) {
     const detail = await response.text();
@@ -297,12 +441,15 @@ export async function fetchCatalog(userId: string, providerId: string): Promise<
 
 export async function resolveRuntime(userId: string, modelRecordId: string): Promise<LlmRuntime> {
   await ensureSeed(userId);
-  const model = await (await models()).findOne({ _id: new ObjectId(modelRecordId), userId });
+  const model = await (await models()).findOne({
+    _id: new ObjectId(modelRecordId),
+    $or: [{ scope: "global" }, { userId }],
+  });
   if (!model) throw new Error("Model not imported — add it in Settings first");
 
   const provider = await (await providers()).findOne({
     _id: new ObjectId(model.providerId),
-    userId,
+    $or: [{ scope: "global" }, { userId }],
   });
   if (!provider) throw new Error("This model's provider was deleted");
 

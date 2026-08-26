@@ -24,6 +24,8 @@ function ModelSelect({
   models,
   onChange,
   emptyLabel,
+  globalLabel,
+  personalLabel,
 }: {
   label: string;
   stand: string;
@@ -31,12 +33,16 @@ function ModelSelect({
   models: PublicModel[];
   onChange: (id: string) => void;
   emptyLabel: string;
+  globalLabel: string;
+  personalLabel: string;
 }) {
   const groups = new Map<string, PublicModel[]>();
   for (const model of models) {
-    const list = groups.get(model.providerName) ?? [];
+    const scopeTag = model.scope === "global" ? globalLabel : personalLabel;
+    const key = `${scopeTag} · ${model.providerName}`;
+    const list = groups.get(key) ?? [];
     list.push(model);
-    groups.set(model.providerName, list);
+    groups.set(key, list);
   }
 
   return (
@@ -47,8 +53,8 @@ function ModelSelect({
       </span>
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {models.length === 0 ? <option value="">{emptyLabel}</option> : null}
-        {[...groups.entries()].map(([providerName, items]) => (
-          <optgroup key={providerName} label={providerName}>
+        {[...groups.entries()].map(([groupName, items]) => (
+          <optgroup key={groupName} label={groupName}>
             {items.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.label}
@@ -279,6 +285,8 @@ export default function HomePage() {
                 models={models}
                 onChange={setGeneratorModelId}
                 emptyLabel={t("workbenchNeedModels")}
+                globalLabel={t("scopeGlobal")}
+                personalLabel={t("scopePersonal")}
               />
               <ModelSelect
                 stand="HEAVEN'S DOOR"
@@ -287,6 +295,8 @@ export default function HomePage() {
                 models={models}
                 onChange={setJudgeModelId}
                 emptyLabel={t("workbenchNeedModels")}
+                globalLabel={t("scopeGlobal")}
+                personalLabel={t("scopePersonal")}
               />
             </div>
             <div className="flex flex-wrap items-center gap-3">

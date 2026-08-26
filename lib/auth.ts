@@ -16,6 +16,8 @@ export type PublicUser = {
   image?: string;
   googleLinked: boolean;
   hasPassword: boolean;
+  isRoot: boolean;
+  isAdmin: boolean;
 };
 
 type UserDoc = {
@@ -25,6 +27,8 @@ type UserDoc = {
   image?: string;
   passwordHash?: string;
   googleId?: string;
+  isRoot?: boolean;
+  isAdmin?: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -54,6 +58,7 @@ export async function ensureAuthIndexes() {
 
 function toPublic(doc: UserDoc): PublicUser {
   if (!doc._id) throw new Error("User record is missing id");
+  const isRoot = Boolean(doc.isRoot);
   return {
     id: doc._id.toHexString(),
     email: doc.email,
@@ -61,7 +66,67 @@ function toPublic(doc: UserDoc): PublicUser {
     image: doc.image,
     googleLinked: Boolean(doc.googleId),
     hasPassword: Boolean(doc.passwordHash),
+    isRoot,
+    // Root always has admin powers
+    isAdmin: isRoot || Boolean(doc.isAdmin),
   };
+}
+
+/** True if the user can configure global LLM providers/models. */
+export function canManageGlobal(user: Pick<PublicUser, "isRoot" | "isAdmin">) {
+  return Boolean(user.isRoot || user.isAdmin);
+}
+
+/**
+ * Ensure a root exists: promote the earliest user to root (+ admin).
+ * Also migrates legacy "first admin" installs when no isRoot is set.
+ */
+export async function ensureRootBootstrap() {
+  await ensureAuthIndexes();
+  const col = await users();
+  const hasRoot = await col.findOne({ isRoot: true }, { projection: { _id: 1 } });
+  if (hasRoot) return;
+  const earliest = await col.find().sort({ createdAt: 1 }).limit(1).next();
+  if (!earliest?._id) return;
+  await col.updateOne(
+    { _id: earliest._id },
+    { $set: { isRoot: true, isAdmin: true, updatedAt: new Date() } },
+  );
+}
+
+/** @deprecated use ensureRootBootstrap */
+export async function ensureAdminBootstrap() {
+  await ensureRootBootstrap();
+}
+
+async function shouldBecomeRoot() {
+  await ensureAuthIndexes();
+  const col = await users();
+  const total = await col.countDocuments();
+  if (total === 0) return true;
+  const hasRoot = await col.findOne({ isRoot: true }, { projection: { _id: 1 } });
+  return !hasRoot;
+}
+
+export async function listUsers(): Promise<PublicUser[]> {
+  await ensureAuthIndexes();
+  const docs = await (await users()).find().sort({ createdAt: 1 }).toArray();
+  return docs.map(toPublic);
+}
+
+export async function setUserAdmin(targetUserId: string, isAdmin: boolean): Promise<PublicUser> {
+  await ensureAuthIndexes();
+  const col = await users();
+  const target = await col.findOne({ _id: new ObjectId(targetUserId) });
+  if (!target?._id) throw new Error("User not found");
+  if (target.isRoot) throw new Error("Cannot change admin flag on the root user");
+  await col.updateOne(
+    { _id: target._id },
+    { $set: { isAdmin, updatedAt: new Date() } },
+  );
+  const updated = await col.findOne({ _id: target._id });
+  if (!updated) throw new Error("User not found");
+  return toPublic(updated);
 }
 
 function normalizeEmail(email: string) {
@@ -161,10 +226,13 @@ export async function registerWithPassword(input: {
   const existing = await (await users()).findOne({ email });
   if (existing) throw new Error("This email is already registered");
   const now = new Date();
+  const isRoot = await shouldBecomeRoot();
   const result = await (await users()).insertOne({
     email,
     name,
     passwordHash: await hashPassword(input.password),
+    isRoot,
+    isAdmin: isRoot,
     createdAt: now,
     updatedAt: now,
   });
@@ -173,6 +241,8 @@ export async function registerWithPassword(input: {
     email,
     name,
     passwordHash: "x",
+    isRoot,
+    isAdmin: isRoot,
     createdAt: now,
     updatedAt: now,
   });
@@ -183,6 +253,7 @@ export async function registerWithPassword(input: {
 
 export async function loginWithPassword(email: string, password: string): Promise<PublicUser> {
   await ensureAuthIndexes();
+  await ensureRootBootstrap();
   const doc = await (await users()).findOne({ email: normalizeEmail(email) });
   if (!doc?.passwordHash) throw new Error("Wrong email or password");
   const ok = await verifyPassword(password, doc.passwordHash);
@@ -209,11 +280,14 @@ export async function loginWithGoogle(
     (await col.findOne({ googleId: profile.googleId })) ?? (await col.findOne({ email }));
 
   if (!doc) {
+    const isRoot = await shouldBecomeRoot();
     const inserted = await col.insertOne({
       email,
       name: profile.name.trim() || email.split("@")[0],
       image: profile.image,
       googleId: profile.googleId,
+      isRoot,
+      isAdmin: isRoot,
       createdAt: now,
       updatedAt: now,
     });
@@ -236,6 +310,7 @@ export async function loginWithGoogle(
       },
     },
   );
+  await ensureRootBootstrap();
   const updated = (await col.findOne({ _id: doc._id })) ?? doc;
   const user = toPublic(updated);
   await writeSession(user.id, response);
@@ -253,6 +328,7 @@ export async function getCurrentUser(): Promise<PublicUser | null> {
     (await cookies()).delete(SESSION_COOKIE);
     return null;
   }
+  await ensureRootBootstrap();
   const doc = await (await users()).findOne({ _id: new ObjectId(session.userId) });
   return doc ? toPublic(doc) : null;
 }
