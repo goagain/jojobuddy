@@ -1,0 +1,49 @@
+# NAS / Portainer + Caddy (caddy-docker-proxy)
+# Portainer Stack Compose path: docker-compose.nas.yml
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - jojobuddy-mongo:/data/db
+    networks:
+      - jojobuddy-internal
+
+  web:
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    restart: unless-stopped
+    environment:
+      JOJOBUDDY_ROLE: web
+      MONGODB_URI: mongodb://mongo:27017/jojobuddy
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
+      AUTH_URL: ${AUTH_URL:-https://jojobuddy.goagain.me}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    depends_on:
+      - mongo
+    networks:
+      - jojobuddy-internal
+      - reverse_proxy
+    labels:
+      caddy: jojobuddy.goagain.me
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+
+  worker:
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    restart: unless-stopped
+    environment:
+      JOJOBUDDY_ROLE: worker
+      MONGODB_URI: mongodb://mongo:27017/jojobuddy
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
+    depends_on:
+      - mongo
+    networks:
+      - jojobuddy-internal
+
+networks:
+  jojobuddy-internal:
+  reverse_proxy:
+    external: true
+
+volumes:
+  jojobuddy-mongo:
