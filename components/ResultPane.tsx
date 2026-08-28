@@ -6,16 +6,20 @@ import Markdown from "react-markdown";
 import type { CraftResult } from "@/lib/types";
 import { useI18n } from "@/components/LocaleProvider";
 import { ScoreRadar } from "./ScoreRadar";
+import { buildResumeExportStem } from "@/lib/export-filename";
 
 function fileStem(value: string) {
   const cleaned = value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
-  return cleaned.slice(0, 48) || "resume";
+  return cleaned.slice(0, 160) || "resume";
 }
 
 export type BoundContext = {
   profileId: string;
   profileLabel: string;
+  personName?: string;
   jobId: string;
+  jobTitle?: string;
+  jobCompany?: string;
   jobLabel: string;
   jobSourceKind: "paste" | "url";
   jobSourceUrl?: string;
@@ -59,6 +63,18 @@ export function ResultPane({
     ["signalToNoise", t("dimNoise"), "20%"],
   ] as const;
 
+  function resolveExportStem() {
+    if (boundContext?.jobId) {
+      return buildResumeExportStem({
+        personName: boundContext.personName ?? boundContext.profileLabel,
+        jobTitle: boundContext.jobTitle,
+        jobId: boundContext.jobId,
+        company: boundContext.jobCompany,
+      });
+    }
+    return fileStem(downloadName || "resume");
+  }
+
   function downloadMarkdown() {
     if (!displayedMarkdown) return;
     const blob = new Blob([displayedMarkdown], { type: "text/markdown;charset=utf-8" });
@@ -66,14 +82,14 @@ export function ResultPane({
     const link = document.createElement("a");
     const roundSuffix = hasMultipleRounds ? `-r${safeRoundIndex + 1}` : "";
     link.href = url;
-    link.download = `${fileStem(downloadName || "resume")}${roundSuffix}.md`;
+    link.download = `${resolveExportStem()}${roundSuffix}.md`;
     link.click();
     URL.revokeObjectURL(url);
   }
 
   function printResume() {
     const previous = document.title;
-    document.title = fileStem(downloadName || "resume");
+    document.title = resolveExportStem();
     window.print();
     document.title = previous;
   }

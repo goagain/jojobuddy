@@ -480,16 +480,14 @@ export default function HomePage() {
               ? {
                   profileId: selectedProfile.id,
                   profileLabel: selectedProfile.name,
+                  personName: selectedProfile.personName,
                   jobId: selectedJob.id,
+                  jobTitle: selectedJob.title,
+                  jobCompany: selectedJob.company,
                   jobLabel: `${selectedJob.company ? `${selectedJob.company} / ` : ""}${selectedJob.title}`,
                   jobSourceKind: selectedJob.sourceKind,
                   jobSourceUrl: selectedJob.sourceUrl,
                 }
-              : undefined
-          }
-          downloadName={
-            selectedJob
-              ? `${selectedProfile?.personName || selectedProfile?.name || "resume"} ${selectedJob.company} ${selectedJob.title}`
               : undefined
           }
         />
