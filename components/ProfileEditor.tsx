@@ -8,9 +8,25 @@ import type { SourceRecord } from "@/lib/entities";
 import { formatHealthHint } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n/config";
 import type { PublicModel } from "@/lib/llm-types";
+import { renderMasterResumeMarkdown, serializeMasterResumeJson } from "@/lib/render-master-resume";
 import { emptyExperience, emptyResume, uid } from "@/lib/resume-factory";
 import type { MasterResume } from "@/lib/schema";
 import { waitForWorkJob } from "@/lib/wait-work";
+
+function fileStem(value: string) {
+  const cleaned = value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+  return cleaned.slice(0, 48) || "profile";
+}
+
+function downloadText(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 function splitList(value: string) {
   return value
@@ -122,6 +138,23 @@ export function ProfileEditor({ profileId }: { profileId?: string }) {
   }
 
   const identity = resume.identity;
+  const exportStem = fileStem(name || identity.name || t("defaultProfileName"));
+
+  function downloadJson() {
+    downloadText(
+      serializeMasterResumeJson(resume),
+      `${exportStem}.json`,
+      "application/json;charset=utf-8",
+    );
+  }
+
+  function downloadMarkdown() {
+    downloadText(
+      renderMasterResumeMarkdown(resume, locale),
+      `${exportStem}.md`,
+      "text/markdown;charset=utf-8",
+    );
+  }
 
   return (
     <div className="min-h-screen px-4 py-5 md:px-8">
@@ -131,9 +164,17 @@ export function ProfileEditor({ profileId }: { profileId?: string }) {
           <p className="display text-[11px] tracking-[0.3em] kicker">PROFILE</p>
           <h1 className="text-3xl font-black">{profileId ? t("editProfile") : t("newProfile")}</h1>
         </div>
-        <button type="button" className="btn btn-violet" disabled={Boolean(busy)} onClick={save}>
-          {busy === "save" ? t("saving") : t("saveProfile")}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn" disabled={Boolean(busy)} onClick={downloadJson}>
+            {t("downloadJson")}
+          </button>
+          <button type="button" className="btn" disabled={Boolean(busy)} onClick={downloadMarkdown}>
+            {t("downloadMd")}
+          </button>
+          <button type="button" className="btn btn-violet" disabled={Boolean(busy)} onClick={save}>
+            {busy === "save" ? t("saving") : t("saveProfile")}
+          </button>
+        </div>
       </div>
       {error ? <p className="mb-3 text-sm font-bold text-rose-700">{error}</p> : null}
 

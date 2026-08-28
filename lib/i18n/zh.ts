@@ -99,6 +99,8 @@ export const zh: Messages = {
   loadSample: "载入示例",
   newProfile: "新建档案",
   editProfile: "编辑档案",
+  downloadJson: "下载 JSON",
+  exportMasterResume: "导出母简历",
   deleteProfileConfirm: "删除这份档案？",
   readProfilesFail: "读取档案失败",
   sourcesCount: "{exp} 段经历 · {src} 条 source",

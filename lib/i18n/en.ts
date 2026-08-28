@@ -97,6 +97,8 @@ export const en = {
   loadSample: "Load sample",
   newProfile: "New profile",
   editProfile: "Edit profile",
+  downloadJson: "Download JSON",
+  exportMasterResume: "Export master resume",
   deleteProfileConfirm: "Delete this profile?",
   readProfilesFail: "Failed to load profiles",
   sourcesCount: "{exp} roles · {src} sources",
