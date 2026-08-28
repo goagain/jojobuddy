@@ -84,7 +84,7 @@ describe("resolveJobLocation", () => {
   it("prefers AI cities over adapter fallback", () => {
     expect(
       resolveJobLocation(
-        { title: "", company: "", jobNumber: "", locations: ["Denver", "Austin"], requirements: [], keywords: [] },
+        { locations: ["Denver", "Austin"] },
         "Seattle, Washington, United States",
       ),
     ).toBe("Denver / Austin");
@@ -93,7 +93,7 @@ describe("resolveJobLocation", () => {
   it("falls back to adapter location when AI returns none", () => {
     expect(
       resolveJobLocation(
-        { title: "", company: "", jobNumber: "", locations: [], requirements: [], keywords: [] },
+        { locations: [] },
         "Seattle, Washington, United States / Austin, Texas",
       ),
     ).toBe("Seattle / Austin");
