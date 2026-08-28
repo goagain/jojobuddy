@@ -6,6 +6,21 @@ import {
   renderCraftedResumeMarkdown,
 } from "@/lib/render-crafted-resume";
 import type { CraftedResumeDoc } from "@/lib/crafted-schema";
+import type { MasterResume } from "@/lib/schema";
+
+function masterResume(overrides: Partial<MasterResume> = {}): MasterResume {
+  return {
+    identity: { name: "Rui Tang", email: "", links: [] },
+    skills: [],
+    experiences: [],
+    projects: [],
+    education: [],
+    certifications: [],
+    languages: [],
+    softSkills: [],
+    ...overrides,
+  };
+}
 
 const base: CraftedResumeDoc = {
   language: "en",
@@ -80,10 +95,7 @@ describe("linkifyEmails", () => {
 
 describe("ensureMasterProjects", () => {
   it("restores projects dropped by the model", () => {
-    const restored = ensureMasterProjects(base, {
-      identity: { name: "Rui Tang", email: "", links: [] },
-      skills: [],
-      experiences: [],
+    const restored = ensureMasterProjects(base, masterResume({
       projects: [
         {
           id: "p1",
@@ -102,8 +114,7 @@ describe("ensureMasterProjects", () => {
           bullets: [{ id: "b2", raw: "Shipped resume tooling." }],
         },
       ],
-      education: [],
-    });
+    }));
 
     expect(restored.projects.map((project) => project.name)).toEqual(["Side App", "Jojobuddy"]);
     expect(restored.projects[0]?.bullets[0]).toBe("Built a demo.");
@@ -122,10 +133,7 @@ describe("ensureMasterProjects", () => {
         },
       ],
     };
-    const restored = ensureMasterProjects(withProject, {
-      identity: { name: "Rui Tang", email: "", links: [] },
-      skills: [],
-      experiences: [],
+    const restored = ensureMasterProjects(withProject, masterResume({
       projects: [
         {
           id: "p1",
@@ -135,8 +143,7 @@ describe("ensureMasterProjects", () => {
           bullets: [{ id: "b1", raw: "Original." }],
         },
       ],
-      education: [],
-    });
+    }));
 
     expect(restored.projects).toHaveLength(1);
     expect(restored.projects[0]?.bullets[0]).toBe("Tailored bullets.");
