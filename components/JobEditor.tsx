@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { useI18n } from "@/components/LocaleProvider";
 import type { Job } from "@/lib/entities";
-import { formatJobLocations } from "@/lib/job-location";
+import { resolveJobFields } from "@/lib/job-fields";
 import { formatHealthHint } from "@/lib/i18n";
 import { enqueueWork } from "@/lib/wait-work";
 import { workbenchHref } from "@/lib/workbench-link";
@@ -88,6 +88,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
         title: string;
         company: string;
         jobNumber: string;
+        postedAt: string;
         requirements: string[];
         keywords: string[];
         locations: string[];
@@ -98,15 +99,26 @@ export function JobEditor({ jobId }: { jobId?: string }) {
           setProgress(step?.step ?? status ?? t("queueing"));
         },
       });
-      setForm((prev) => ({
-        ...prev,
-        title: insights.title || prev.title,
-        company: insights.company || prev.company,
-        jobNumber: insights.jobNumber || prev.jobNumber,
-        requirements: insights.requirements,
-        keywords: insights.keywords,
-        location: formatJobLocations(insights.locations) || prev.location,
-      }));
+      setForm((prev) => {
+        const fields = resolveJobFields(insights, {
+          title: prev.title,
+          company: prev.company,
+          location: prev.location,
+          jobNumber: prev.jobNumber,
+          postedAt: prev.postedAt,
+          sourceUrl: prev.sourceUrl,
+        });
+        return {
+          ...prev,
+          title: fields.title,
+          company: fields.company,
+          jobNumber: fields.jobNumber ?? prev.jobNumber,
+          postedAt: fields.postedAt,
+          requirements: fields.requirements,
+          keywords: fields.keywords,
+          location: fields.locationFormatted || prev.location,
+        };
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("parseFail"));
     } finally {

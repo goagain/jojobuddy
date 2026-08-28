@@ -1,0 +1,39 @@
+---
+description: Run tests and Docker build before creating git commits
+alwaysApply: true
+---
+
+# Pre-commit verification
+
+Before creating any git commit (including when the user asks to commit or release), run these checks **in order** and fix failures before committing.
+
+## Required commands
+
+From the repo root:
+
+```bash
+npm test
+docker build -t jojobuddy:local .
+```
+
+Both must exit successfully.
+
+- `npm test` — Vitest unit tests (`vitest run`)
+- `docker build` — Same path as CI/release; catches TypeScript and `next build` errors inside the production image (including Playwright install + `npm run build`)
+
+## When to run
+
+- After meaningful code changes and **before** `git add` / `git commit`
+- Before triggering a release workflow
+- If the user only changed docs or comments, still run `npm test`; skip Docker only if the change cannot affect the build (pure markdown with no code/config touch)
+
+## If a check fails
+
+1. Fix the root cause; do not commit broken code
+2. Re-run the failed command until it passes
+3. Do not skip hooks (`--no-verify`) unless the user explicitly requests it
+
+## Do not
+
+- Commit without running tests when source, config, or dependency files changed
+- Assume local `npm run build` alone is enough — Docker build is required because release CI builds the image

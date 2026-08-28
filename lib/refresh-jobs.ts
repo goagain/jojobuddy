@@ -1,12 +1,7 @@
 import { deleteJob, listUrlJobs, updateJob } from "./entity-store";
 import type { Job } from "./entities";
 import { fetchJobPage } from "./extract-url";
-import { resolveJobLocation } from "./job-location";
-import {
-  resolveJobCompany,
-  resolveJobNumber,
-  resolveJobTitle,
-} from "./job-fields";
+import { resolveJobFields } from "./job-fields";
 import type { LlmRuntime } from "./llm-types";
 import { analyzeJobDescription } from "./parse-job";
 
@@ -81,17 +76,25 @@ async function refreshOneJob(
   try {
     const page = await fetchJobPage(url);
     const insights = await analyzeJobDescription(page.text, runtime, { sourceUrl: url });
+    const fields = resolveJobFields(insights, {
+      title: page.title || job.title,
+      company: page.company || job.company,
+      location: page.location,
+      postedAt: page.postedAt ?? job.postedAt,
+      jobNumber: job.jobNumber,
+      sourceUrl: page.url,
+    });
     await updateJob(userId, job.id, {
-      title: resolveJobTitle(insights, page.title || job.title),
-      company: resolveJobCompany(insights, page.company || job.company),
-      location: resolveJobLocation(insights, page.location),
-      jobNumber: resolveJobNumber(insights, page.url) ?? job.jobNumber,
+      title: fields.title,
+      company: fields.company,
+      location: fields.location,
+      jobNumber: fields.jobNumber,
       sourceUrl: page.url,
       sourceText: page.text,
       parsedText: page.text,
-      requirements: insights.requirements,
-      keywords: insights.keywords,
-      postedAt: page.postedAt ?? job.postedAt,
+      requirements: fields.requirements,
+      keywords: fields.keywords,
+      postedAt: fields.postedAt,
     });
     return { status: "updated" };
   } catch (error) {

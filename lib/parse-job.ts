@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { normalizeCompanyName } from "./job-company";
 import { normalizeJobLocations } from "./job-location";
+import { normalizePostedAt } from "./parse-posted-at";
 import { buildAnalyzeJobMessages } from "./prompts";
 import { chat, extractJsonObject } from "./llm";
 import type { LlmRuntime } from "./llm-types";
@@ -9,6 +10,7 @@ export const jobInsightsSchema = z.object({
   title: z.string().default(""),
   company: z.string().default(""),
   jobNumber: z.string().default(""),
+  postedAt: z.string().default(""),
   requirements: z.array(z.string()).default([]),
   keywords: z.array(z.string()).default([]),
   locations: z.array(z.string()).default([]),
@@ -24,6 +26,7 @@ const EMPTY_INSIGHTS: JobInsights = {
   title: "",
   company: "",
   jobNumber: "",
+  postedAt: "",
   requirements: [],
   keywords: [],
   locations: [],
@@ -110,6 +113,16 @@ const JOB_NUMBER_LINE_PATTERNS = [
   /^Job\s*(?:ID|Number)\s*[:：]\s*(.+)$/im,
   /^Posting\s*(?:ID|Number)\s*[:：]\s*(.+)$/im,
   /^职位编号\s*[:：]\s*(.+)$/im,
+];
+
+const POSTED_AT_LINE_PATTERNS = [
+  /^Posted\s*[:：]\s*(.+)$/im,
+  /^Posted on\s*(.+)$/im,
+  /^Date posted\s*[:：]\s*(.+)$/im,
+  /^Posting date\s*[:：]\s*(.+)$/im,
+  /^发布于\s*(.+)$/im,
+  /^发布时间\s*[:：]\s*(.+)$/im,
+  /^网站发布于\s*(.+)$/im,
 ];
 
 function normalizeLine(line: string) {
@@ -214,12 +227,18 @@ function extractJobNumberHeuristic(text: string): string {
   return firstMatch(text, JOB_NUMBER_LINE_PATTERNS).slice(0, 64);
 }
 
+function extractPostedAtHeuristic(text: string): string {
+  const raw = firstMatch(text, POSTED_AT_LINE_PATTERNS);
+  return normalizePostedAt(raw) ?? "";
+}
+
 export function normalizeJobInsights(raw: unknown): JobInsights {
   const data = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   return jobInsightsSchema.parse({
     title: asString(data.title).slice(0, 160),
     company: normalizeCompanyName(asString(data.company)),
     jobNumber: asString(data.jobNumber).slice(0, 64),
+    postedAt: normalizePostedAt(asString(data.postedAt)) ?? "",
     requirements: dedupe(asStringList(data.requirements)).slice(0, 24),
     keywords: dedupe(asStringList(data.keywords)).slice(0, 32),
     locations: normalizeJobLocations(dedupe(asStringList(data.locations))).slice(0, 12),
@@ -283,6 +302,7 @@ export function extractJobInsightsHeuristic(text: string): JobInsights {
     title: extractTitleHeuristic(trimmed),
     company: extractCompanyHeuristic(trimmed),
     jobNumber: extractJobNumberHeuristic(trimmed),
+    postedAt: extractPostedAtHeuristic(trimmed),
     requirements: dedupe(requirements).slice(0, 24),
     keywords: dedupe(keywords).slice(0, 32),
     locations: extractLocationsHeuristic(trimmed),

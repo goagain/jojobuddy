@@ -4,10 +4,7 @@ import { fetchJobPage } from "./extract-url";
 import { pickParseRuntime, resolveRuntime } from "./llm-store";
 import { analyzeJobDescription } from "./parse-job";
 import {
-  resolveJobCompany,
-  resolveJobLocation,
-  resolveJobNumber,
-  resolveJobTitle,
+  resolveJobFields,
 } from "./job-fields";
 import { structureResume } from "./parse-resume";
 import { uid } from "./resume-factory";
@@ -30,18 +27,25 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
     const runtime = await pickParseRuntime(job.userId);
     const insights = await analyzeJobDescription(page.text, runtime, { sourceUrl: page.url });
     await updateWorkProgress(id, { step: "Cleaning job text", percent: 90 });
+    const fields = resolveJobFields(insights, {
+      title: page.title,
+      company: page.company,
+      location: page.location,
+      postedAt: page.postedAt,
+      sourceUrl: page.url,
+    });
     return {
-      title: resolveJobTitle(insights, page.title),
-      company: resolveJobCompany(insights, page.company),
-      location: resolveJobLocation(insights, page.location),
-      jobNumber: resolveJobNumber(insights, page.url),
+      title: fields.title,
+      company: fields.company,
+      location: fields.location,
+      jobNumber: fields.jobNumber,
+      postedAt: fields.postedAt,
       sourceKind: "url",
       sourceUrl: page.url,
       sourceText: page.text,
       parsedText: page.text,
-      postedAt: page.postedAt,
-      requirements: insights.requirements,
-      keywords: insights.keywords,
+      requirements: fields.requirements,
+      keywords: fields.keywords,
     };
   }
 

@@ -248,6 +248,7 @@ Output JSON only:
   "title": string,
   "company": string,
   "jobNumber": string,
+  "postedAt": string,
   "requirements": string[],
   "keywords": string[],
   "locations": string[]
@@ -268,6 +269,11 @@ jobNumber:
 - If a source URL is provided, you may infer the id from its path when that is standard for the site.
 - Empty string if unknown. Examples: Apple "200678539-3337", LinkedIn numeric posting id.
 
+postedAt:
+- ISO 8601 datetime (UTC) when the JD states when the job was posted on the careers site.
+- Look for "Posted", "Date posted", "Posting date", "发布于", "发布时间", or similar labels with a calendar date.
+- Empty string if no concrete date is stated. Do not invent dates from relative phrases alone ("2 weeks ago") unless you cannot resolve them.
+
 requirements:
 - 6–16 concise bullets covering must-have qualifications, preferred qualifications, and core responsibilities.
 - Each bullet one line, actionable, faithful to the JD wording.
@@ -287,7 +293,7 @@ locations:
 - If no location is stated, return [].`;
 
 const ANALYZE_JOB_ACK =
-  "Understood. I will return title, company, jobNumber, requirements, keywords, and locations JSON extracted faithfully from the JD.";
+  "Understood. I will return title, company, jobNumber, postedAt, requirements, keywords, and locations JSON extracted faithfully from the JD.";
 
 export function buildAnalyzeJobMessages(
   jobDescription: string,
@@ -302,7 +308,7 @@ export function buildAnalyzeJobMessages(
     {
       role: "user",
       content:
-        "Confirm you will extract title, company, jobNumber, requirements, keywords, and locations from the JD only and return JSON.",
+        "Confirm you will extract title, company, jobNumber, postedAt, requirements, keywords, and locations from the JD only and return JSON.",
     },
     { role: "assistant", content: ANALYZE_JOB_ACK },
     {

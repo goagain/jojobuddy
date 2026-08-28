@@ -67,6 +67,7 @@ describe("normalizeJobInsights", () => {
       title: "",
       company: "",
       jobNumber: "",
+      postedAt: "",
       requirements: ["Go experience"],
       keywords: ["kubernetes"],
       locations: [
@@ -106,6 +107,7 @@ describe("normalizeJobInsights company", () => {
       title: "Engineer",
       company: "Snap Inc.",
       jobNumber: "",
+      postedAt: "",
       requirements: [],
       keywords: [],
       locations: [],
