@@ -42,6 +42,7 @@ export async function ensureCraftIndexes() {
   const col = await crafts();
   await Promise.all([
     col.createIndex({ userId: 1, profileId: 1, jobId: 1 }, { unique: true }),
+    col.createIndex({ userId: 1, updatedAt: -1 }),
     col.createIndex({ jobId: 1 }),
     col.createIndex({ profileId: 1 }),
   ]);
@@ -106,6 +107,31 @@ export async function getCraftedResume(
 ): Promise<CraftedResume | null> {
   const doc = await (await crafts()).findOne({ userId, profileId, jobId });
   return doc ? toPublic(doc) : null;
+}
+
+export type CraftJobSummary = {
+  jobId: string;
+  profileId: string;
+  updatedAt: string;
+};
+
+/** Most recently updated craft per job for this user. */
+export async function listLatestCraftsByJob(userId: string): Promise<CraftJobSummary[]> {
+  await ensureCraftIndexes();
+  const docs = await (await crafts())
+    .find({ userId }, { projection: { jobId: 1, profileId: 1, updatedAt: 1 } })
+    .sort({ updatedAt: -1 })
+    .toArray();
+  const byJob = new Map<string, CraftJobSummary>();
+  for (const doc of docs) {
+    if (byJob.has(doc.jobId)) continue;
+    byJob.set(doc.jobId, {
+      jobId: doc.jobId,
+      profileId: doc.profileId,
+      updatedAt: doc.updatedAt.toISOString(),
+    });
+  }
+  return [...byJob.values()];
 }
 
 export async function deleteCraftsForProfile(profileId: string) {

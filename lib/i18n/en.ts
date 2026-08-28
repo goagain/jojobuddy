@@ -53,6 +53,7 @@ export const en = {
   workbenchGo: "Open workbench",
   workbenchGoWithProfile: "Craft with this profile",
   workbenchGoWithJob: "Craft for this job",
+  workbenchViewCraft: "View crafted resume",
   addedAt: "Added {date}",
   workbenchAutoRefine: "Auto-refine",
   workbenchThreshold: "Pass line",

@@ -28,6 +28,7 @@ export default function JobsPage() {
   const [addedTo, setAddedTo] = useState("");
   const [postedFrom, setPostedFrom] = useState("");
   const [postedTo, setPostedTo] = useState("");
+  const [craftByJobId, setCraftByJobId] = useState<Record<string, { profileId: string }>>({});
 
   const companyOptions = useMemo(() => {
     const names = new Set(jobs.map(jobCompanyKey));
@@ -50,14 +51,21 @@ export default function JobsPage() {
   }, [jobs, titleQuery, companyFilter, addedFrom, addedTo, postedFrom, postedTo]);
 
   async function reload() {
-    const [health, list] = await Promise.all([
+    const [health, list, craftSummary] = await Promise.all([
       fetch("/api/health").then((response) => response.json()),
       fetch("/api/jobs").then((response) => response.json()),
+      fetch("/api/crafts/summary").then((response) => response.json()),
     ]);
     setOk(Boolean(health.ok));
     setHint(formatHealthHint(t, health));
     setJobs(list.jobs ?? []);
     if (list.error) setError(list.error);
+    const nextCraftByJobId: Record<string, { profileId: string }> = {};
+    for (const craft of craftSummary.crafts ?? []) {
+      if (!craft?.jobId || !craft?.profileId) continue;
+      nextCraftByJobId[craft.jobId] = { profileId: craft.profileId };
+    }
+    setCraftByJobId(nextCraftByJobId);
   }
 
   useEffect(() => {
@@ -183,7 +191,9 @@ export default function JobsPage() {
         <div className="panel text-sm muted">{t("jobsFilterNoMatch")}</div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {filteredJobs.map((job) => (
+          {filteredJobs.map((job) => {
+            const craft = craftByJobId[job.id];
+            return (
             <article key={job.id} className="panel flex flex-col gap-3">
               <div>
                 <p className="text-[11px] font-black tracking-widest kicker-gold">
@@ -205,8 +215,13 @@ export default function JobsPage() {
                 <p className="truncate text-[11px] muted">{job.sourceUrl}</p>
               ) : null}
               <div className="mt-auto flex flex-wrap gap-2">
-                <Link href={workbenchHref({ jobId: job.id })} className="btn btn-violet">
-                  {t("workbenchGoWithJob")}
+                <Link
+                  href={workbenchHref(
+                    craft ? { profileId: craft.profileId, jobId: job.id } : { jobId: job.id },
+                  )}
+                  className="btn btn-violet"
+                >
+                  {craft ? t("workbenchViewCraft") : t("workbenchGoWithJob")}
                 </Link>
                 <Link href={`/jobs/${job.id}`} className="btn btn-gold">
                   {t("edit")}
@@ -216,7 +231,8 @@ export default function JobsPage() {
                 </button>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

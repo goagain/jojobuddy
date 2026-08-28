@@ -55,6 +55,7 @@ export const zh: Messages = {
   workbenchGo: "去工作台",
   workbenchGoWithProfile: "用此档案生成",
   workbenchGoWithJob: "用此职位生成",
+  workbenchViewCraft: "查看已生成简历",
   addedAt: "添加于 {date}",
   workbenchAutoRefine: "自循环优化",
   workbenchThreshold: "放行线",
