@@ -4,6 +4,7 @@ export type AdaptedJobPage = {
   location: string;
   text: string;
   canonicalUrl?: string;
+  postedAt?: string;
 };
 
 export type FetchText = (

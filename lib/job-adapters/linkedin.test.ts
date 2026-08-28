@@ -32,6 +32,7 @@ describe("parseLinkedInGuestHtml", () => {
         </div>
         <span class="topcard__flavor topcard__flavor--bullet">Vancouver, British Columbia, Canada</span>
         <span class="topcard__flavor topcard__flavor--bullet">158 applicants</span>
+        <time datetime="2024-03-01">1 month ago</time>
       </section>
       <div class="show-more-less-html__markup">
         <p>Introduction</p>
@@ -42,6 +43,7 @@ describe("parseLinkedInGuestHtml", () => {
     expect(parsed?.title).toBe("Senior Backend Engineer");
     expect(parsed?.company).toBe("IBM");
     expect(parsed?.location).toBe("Vancouver, British Columbia, Canada");
+    expect(parsed?.postedAt).toBe("2024-03-01T00:00:00.000Z");
     expect(parsed?.text).toContain("Description");
     expect(parsed?.text).toContain("IBM Software");
   });

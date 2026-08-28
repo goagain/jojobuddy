@@ -1,7 +1,8 @@
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "./db";
 import type { Job, JobSummary, Profile, ProfileSummary, SourceRecord } from "./entities";
-import { deleteCraftsForJob, deleteCraftsForProfile } from "./craft-store";
+import { deleteCraftsForJob, deleteCraftsForProfile, deleteCraftsForJobs } from "./craft-store";
+import { normalizePostedAt } from "./parse-posted-at";
 import { sortResumeByTime } from "./resume-factory";
 import type { MasterResume } from "./schema";
 
@@ -27,6 +28,7 @@ type JobDoc = {
   parsedText: string;
   requirements?: string[];
   keywords?: string[];
+  postedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -78,6 +80,7 @@ function toJob(doc: JobDoc): Job {
     parsedText: doc.parsedText,
     requirements: doc.requirements ?? [],
     keywords: doc.keywords ?? [],
+    postedAt: doc.postedAt ? iso(doc.postedAt) : undefined,
     createdAt: iso(doc.createdAt),
     updatedAt: iso(doc.updatedAt),
   };
@@ -92,6 +95,7 @@ function toJobSummary(doc: JobDoc): JobSummary {
     sourceKind: job.sourceKind,
     sourceUrl: job.sourceUrl,
     excerpt: excerpt(job.parsedText || job.sourceText),
+    postedAt: job.postedAt,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
   };
@@ -111,6 +115,7 @@ export async function ensureEntityIndexes() {
   await Promise.all([
     profileCol.createIndex({ userId: 1, updatedAt: -1 }),
     jobCol.createIndex({ userId: 1, updatedAt: -1 }),
+    jobCol.createIndex({ userId: 1, createdAt: 1 }),
   ]);
 }
 
@@ -192,10 +197,12 @@ export async function createJob(
     parsedText: string;
     requirements?: string[];
     keywords?: string[];
+    postedAt?: string;
   },
 ): Promise<Job> {
   const now = new Date();
   const parsedText = input.parsedText.trim();
+  const postedAt = normalizePostedAt(input.postedAt);
   const doc: JobDoc = {
     userId,
     title: input.title.trim() || "Untitled job",
@@ -207,6 +214,7 @@ export async function createJob(
     parsedText,
     requirements: input.requirements?.map((item) => item.trim()).filter(Boolean),
     keywords: input.keywords?.map((item) => item.trim()).filter(Boolean),
+    postedAt: postedAt ? new Date(postedAt) : undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -233,6 +241,10 @@ export async function updateJob(
   if (patch.keywords !== undefined) {
     $set.keywords = patch.keywords.map((item) => item.trim()).filter(Boolean);
   }
+  if (patch.postedAt !== undefined) {
+    const postedAt = normalizePostedAt(patch.postedAt);
+    $set.postedAt = postedAt ? new Date(postedAt) : undefined;
+  }
   const result = await (await jobs()).findOneAndUpdate(
     { _id: new ObjectId(id), userId },
     { $set },
@@ -245,6 +257,23 @@ export async function deleteJob(userId: string, id: string): Promise<boolean> {
   const result = await (await jobs()).deleteOne({ _id: new ObjectId(id), userId });
   if (result.deletedCount > 0) await deleteCraftsForJob(id);
   return result.deletedCount > 0;
+}
+
+export const STALE_JOB_DAYS = 30;
+
+export async function deleteJobsOlderThan(userId: string, olderThanDays: number): Promise<number> {
+  await ensureEntityIndexes();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - olderThanDays);
+  const col = await jobs();
+  const stale = await col
+    .find({ userId, createdAt: { $lt: cutoff } }, { projection: { _id: 1 } })
+    .toArray();
+  if (stale.length === 0) return 0;
+  const ids = stale.map((doc) => doc._id!.toHexString());
+  await deleteCraftsForJobs(ids);
+  const result = await col.deleteMany({ userId, createdAt: { $lt: cutoff } });
+  return result.deletedCount;
 }
 
 export async function entityCounts(userId: string) {

@@ -1,5 +1,6 @@
 import type { AdaptedJobPage, FetchText, JobSiteAdapter } from "./types";
 import { cleanText } from "./text";
+import { normalizePostedAt } from "../parse-posted-at";
 
 type TikTokCity = {
   en_name?: string;
@@ -15,6 +16,9 @@ type TikTokJobDetail = {
   city_list?: TikTokCity[];
   job_category?: { en_name?: string; i18n_name?: string; name?: string };
   recruit_type?: { en_name?: string; i18n_name?: string; name?: string };
+  publish_time?: number | string;
+  create_time?: number | string;
+  posted_at?: number | string;
 };
 
 /** Extract numeric position id from lifeattiktok.com referral URLs. */
@@ -80,11 +84,16 @@ export function parseTikTokJobPayload(body: string): Omit<AdaptedJobPage, "canon
   const text = sections.join("\n\n").trim();
   if (text.length < 40) return null;
 
+  const postedAt = normalizePostedAt(
+    detail.publish_time ?? detail.create_time ?? detail.posted_at,
+  );
+
   return {
     title: title || "TikTok job",
     company: "TikTok",
     location,
     text,
+    postedAt,
   };
 }
 

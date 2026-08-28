@@ -15,6 +15,7 @@ const createSchema = z.object({
   parsedText: z.string().min(20, "Job description text is too short"),
   requirements: z.array(z.string()).optional(),
   keywords: z.array(z.string()).optional(),
+  postedAt: z.string().optional(),
 });
 
 export async function GET() {

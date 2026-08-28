@@ -39,7 +39,12 @@ async function crafts(): Promise<Collection<CraftedDoc>> {
 }
 
 export async function ensureCraftIndexes() {
-  await (await crafts()).createIndex({ userId: 1, profileId: 1, jobId: 1 }, { unique: true });
+  const col = await crafts();
+  await Promise.all([
+    col.createIndex({ userId: 1, profileId: 1, jobId: 1 }, { unique: true }),
+    col.createIndex({ jobId: 1 }),
+    col.createIndex({ profileId: 1 }),
+  ]);
 }
 
 function toPublic(doc: CraftedDoc): CraftedResume {
@@ -104,9 +109,17 @@ export async function getCraftedResume(
 }
 
 export async function deleteCraftsForProfile(profileId: string) {
+  await ensureCraftIndexes();
   await (await crafts()).deleteMany({ profileId });
 }
 
 export async function deleteCraftsForJob(jobId: string) {
+  await ensureCraftIndexes();
   await (await crafts()).deleteMany({ jobId });
+}
+
+export async function deleteCraftsForJobs(jobIds: string[]) {
+  if (jobIds.length === 0) return;
+  await ensureCraftIndexes();
+  await (await crafts()).deleteMany({ jobId: { $in: jobIds } });
 }

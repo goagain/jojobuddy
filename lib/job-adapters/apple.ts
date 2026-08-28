@@ -1,5 +1,6 @@
 import type { AdaptedJobPage, FetchText, JobSiteAdapter } from "./types";
 import { htmlToText } from "./text";
+import { normalizePostedAt } from "../parse-posted-at";
 
 async function fetchAppleJob(url: URL, fetchText: FetchText): Promise<AdaptedJobPage | null> {
   const match = url.pathname.match(/\/details\/(\d+(?:-\d+)?)/i);
@@ -52,7 +53,8 @@ async function fetchAppleJob(url: URL, fetchText: FetchText): Promise<AdaptedJob
 
   const text = sections.join("\n\n").trim();
   if (text.length < 40) return null;
-  return { title: title || "Apple job", company: "Apple", location: locations, text };
+  const postedAt = normalizePostedAt(job.postDateInGMT ?? job.postingDate);
+  return { title: title || "Apple job", company: "Apple", location: locations, text, postedAt };
 }
 
 export const appleJobAdapter: JobSiteAdapter = {

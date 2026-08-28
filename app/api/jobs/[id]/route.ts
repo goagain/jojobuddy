@@ -15,6 +15,7 @@ const patchSchema = z.object({
   parsedText: z.string().min(20).optional(),
   requirements: z.array(z.string()).optional(),
   keywords: z.array(z.string()).optional(),
+  postedAt: z.string().optional(),
 });
 
 type Ctx = { params: Promise<{ id: string }> };

@@ -20,6 +20,7 @@ const EMPTY: Omit<Job, "id" | "createdAt" | "updatedAt"> = {
   parsedText: "",
   requirements: [],
   keywords: [],
+  postedAt: undefined,
 };
 
 export function JobEditor({ jobId }: { jobId?: string }) {
@@ -66,6 +67,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
           parsedText: job.parsedText,
           requirements: job.requirements ?? [],
           keywords: job.keywords ?? [],
+          postedAt: job.postedAt,
         });
         setUrl(job.sourceUrl ?? "");
       })
@@ -113,6 +115,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
         parsedText: string;
         requirements: string[];
         keywords: string[];
+        postedAt?: string;
       }>({
         type: "parse_url",
         payload: { url },
@@ -130,6 +133,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
         parsedText: page.parsedText,
         requirements: page.requirements ?? [],
         keywords: page.keywords ?? [],
+        postedAt: page.postedAt,
       });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("parseFail"));

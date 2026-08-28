@@ -31,6 +31,7 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
       sourceUrl: page.url,
       sourceText: page.text,
       parsedText: page.text,
+      postedAt: page.postedAt,
       requirements: insights.requirements,
       keywords: insights.keywords,
     };

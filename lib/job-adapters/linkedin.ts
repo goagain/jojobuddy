@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import type { AdaptedJobPage, FetchText, JobSiteAdapter } from "./types";
 import { cleanText } from "./text";
+import { normalizePostedAt } from "../parse-posted-at";
 
 /** Extract numeric job id from LinkedIn view or search-results URLs. */
 export function linkedInJobId(raw: string | URL): string | null {
@@ -59,11 +60,13 @@ export function parseLinkedInGuestHtml(html: string): Omit<AdaptedJobPage, "cano
 
   const text = sections.join("\n\n").trim();
   if (text.length < 40) return null;
+  const postedAt = normalizePostedAt($("time[datetime]").first().attr("datetime"));
   return {
     title: title || "LinkedIn job",
     company,
     location,
     text,
+    postedAt,
   };
 }
 

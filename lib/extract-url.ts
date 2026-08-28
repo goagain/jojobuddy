@@ -5,6 +5,7 @@ import * as cheerio from "cheerio";
 import { fetchViaJobAdapters } from "./job-adapters";
 import { cleanText, htmlToText } from "./job-adapters/text";
 import { runPageInJsEngine } from "./js-engine";
+import { normalizePostedAt } from "./parse-posted-at";
 import { renderJobPageWithPlaywright } from "./playwright-page";
 
 const BLOCKED_HOSTS = new Set(["localhost", "metadata.google.internal"]);
@@ -174,10 +175,12 @@ async function fetchText(url: URL, headers: Record<string, string> = BROWSER_HEA
   }
 }
 
-function extractJsonLdJob($: cheerio.CheerioAPI): {  title: string;
+function extractJsonLdJob($: cheerio.CheerioAPI): {
+  title: string;
   company: string;
   location: string;
   text: string;
+  postedAt?: string;
 } | null {
   const blocks: unknown[] = [];
   $('script[type="application/ld+json"]').each((_, el) => {
@@ -205,6 +208,7 @@ function extractJsonLdJob($: cheerio.CheerioAPI): {  title: string;
     | {
         title?: string;
         description?: string;
+        datePosted?: string;
         hiringOrganization?: { name?: string } | string;
         jobLocation?: unknown;
       }
@@ -221,7 +225,13 @@ function extractJsonLdJob($: cheerio.CheerioAPI): {  title: string;
   const text = [`${posting.title ?? ""}`, company && `Company: ${company}`, place && `Location: ${place}`, description]
     .filter(Boolean)
     .join("\n\n");
-  return { title: posting.title ?? "Job", company, location: place, text };
+  return {
+    title: posting.title ?? "Job",
+    company,
+    location: place,
+    text,
+    postedAt: normalizePostedAt(posting.datePosted),
+  };
 }
 
 export async function fetchJobPage(rawUrl: string): Promise<{
@@ -230,6 +240,7 @@ export async function fetchJobPage(rawUrl: string): Promise<{
   company: string;
   location: string;
   text: string;
+  postedAt?: string;
 }> {
   const url = await assertPublicHttpUrl(rawUrl);
 
@@ -241,6 +252,7 @@ export async function fetchJobPage(rawUrl: string): Promise<{
       company: adapted.company,
       location: adapted.location,
       text: adapted.text,
+      postedAt: adapted.postedAt,
     };
   }
 
@@ -255,6 +267,12 @@ export async function fetchJobPage(rawUrl: string): Promise<{
     return { url: url.toString(), ...jsonLd };
   }
 
+  const metaPostedAt = normalizePostedAt(
+    $('meta[property="article:published_time"]').attr("content") ||
+      $('meta[name="date"]').attr("content") ||
+      $("time[datetime]").first().attr("datetime"),
+  );
+
   try {
     const rendered = await runPageInJsEngine(html, url.toString());
     if (rendered.text.length >= 40) {
@@ -268,6 +286,7 @@ export async function fetchJobPage(rawUrl: string): Promise<{
           "",
         location: locationFromJobText(text),
         text,
+        postedAt: metaPostedAt,
       };
     }
   } catch {
@@ -286,6 +305,7 @@ export async function fetchJobPage(rawUrl: string): Promise<{
           "",
         location: locationFromJobText(playwrightPage.text),
         text: playwrightPage.text,
+        postedAt: metaPostedAt,
       };
     }
   } catch {
@@ -319,5 +339,6 @@ export async function fetchJobPage(rawUrl: string): Promise<{
     company: company || "",
     location: locationFromJobText(text),
     text,
+    postedAt: metaPostedAt,
   };
 }

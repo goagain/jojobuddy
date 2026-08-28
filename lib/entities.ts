@@ -42,6 +42,7 @@ export type Job = {
   parsedText: string;
   requirements?: string[];
   keywords?: string[];
+  postedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -53,6 +54,7 @@ export type JobSummary = {
   sourceKind: "paste" | "url";
   sourceUrl?: string;
   excerpt: string;
+  postedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
