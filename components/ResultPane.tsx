@@ -261,7 +261,9 @@ export function ResultPane({
             </div>
           </div>
         ) : (
-          <p className="text-sm leading-6 text-black/60">{t("heavensEmpty")}</p>
+          <p className="text-sm leading-6 text-black/60">
+            {busy ? progress || t("heavensEmptyBusy") : t("heavensEmpty")}
+          </p>
         )}
       </article>
     </section>

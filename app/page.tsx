@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
 import { ResultPane } from "@/components/ResultPane";
@@ -17,6 +17,15 @@ const PROFILE_KEY = "jojobuddy.profile-id";
 const JOB_KEY = "jojobuddy.job-id";
 const GENERATOR_KEY = "jojobuddy.generator-model";
 const JUDGE_KEY = "jojobuddy.judge-model";
+
+type CraftSession = {
+  workJobId: string;
+  progress: string;
+};
+
+function craftPairKey(profileId: string, jobId: string) {
+  return `${profileId}:${jobId}`;
+}
 
 function ModelSelect({
   label,
@@ -79,15 +88,84 @@ export default function HomePage() {
   const [judgeModelId, setJudgeModelId] = useState("");
   const [autoRefine, setAutoRefine] = useState(true);
   const [threshold, setThreshold] = useState(85);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState("");
+  const [craftSessions, setCraftSessions] = useState<Record<string, CraftSession>>({});
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CraftResult | null>(null);
   const [sRank, setSRank] = useState(false);
   const [hint, setHint] = useState(() => t("connecting"));
   const [ok, setOk] = useState(false);
   const pairRef = useRef({ profileId: "", jobId: "" });
+  const pollingRef = useRef(new Set<string>());
   pairRef.current = { profileId, jobId };
+
+  const currentPairKey = profileId && jobId ? craftPairKey(profileId, jobId) : "";
+  const currentSession = currentPairKey ? craftSessions[currentPairKey] : undefined;
+  const busy = Boolean(currentSession);
+  const progress = currentSession?.progress ?? "";
+
+  const loadCraftResult = useCallback(async (nextProfileId: string, nextJobId: string) => {
+    const response = await fetch(
+      `/api/crafts?profileId=${encodeURIComponent(nextProfileId)}&jobId=${encodeURIComponent(nextJobId)}`,
+    );
+    const payload = await response.json();
+    return (payload.craft?.result ?? null) as CraftResult | null;
+  }, []);
+
+  const updateCraftProgress = useCallback((key: string, nextProgress: string) => {
+    setCraftSessions((prev) => {
+      const current = prev[key];
+      if (!current) return prev;
+      return { ...prev, [key]: { ...current, progress: nextProgress } };
+    });
+  }, []);
+
+  const clearCraftSession = useCallback((key: string) => {
+    setCraftSessions((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  const trackCraftWork = useCallback(
+    async (workJobId: string, forProfile: string, forJob: string) => {
+      if (pollingRef.current.has(workJobId)) return;
+      pollingRef.current.add(workJobId);
+
+      const key = craftPairKey(forProfile, forJob);
+      setCraftSessions((prev) => ({
+        ...prev,
+        [key]: { workJobId, progress: prev[key]?.progress ?? t("queueing") },
+      }));
+
+      try {
+        const crafted = await waitForWorkJob<CraftResult>(workJobId, (step, status) => {
+          updateCraftProgress(key, step?.step ?? status ?? t("queueing"));
+        });
+        if (pairRef.current.profileId === forProfile && pairRef.current.jobId === forJob) {
+          setResult(crafted);
+          setSRank(crafted.judgment?.verdict === "s_rank");
+        }
+      } catch (caught) {
+        if (pairRef.current.profileId === forProfile && pairRef.current.jobId === forJob) {
+          setError(caught instanceof Error ? caught.message : t("unknownError"));
+        }
+      } finally {
+        pollingRef.current.delete(workJobId);
+        clearCraftSession(key);
+        if (pairRef.current.profileId === forProfile && pairRef.current.jobId === forJob) {
+          try {
+            const saved = await loadCraftResult(forProfile, forJob);
+            if (saved) setResult(saved);
+          } catch {
+            // keep last in-memory result if reload fails
+          }
+        }
+      }
+    },
+    [clearCraftSession, loadCraftResult, t, updateCraftProgress],
+  );
 
   useEffect(() => {
     const savedProfile = window.localStorage.getItem(PROFILE_KEY) ?? "";
@@ -121,17 +199,34 @@ export default function HomePage() {
   }, [t]);
 
   useEffect(() => {
+    fetch("/api/craft/active")
+      .then((response) => response.json())
+      .then((payload) => {
+        for (const job of payload.jobs ?? []) {
+          if (!job.id || !job.profileId || !job.jobId) continue;
+          const key = craftPairKey(job.profileId, job.jobId);
+          setCraftSessions((prev) => ({
+            ...prev,
+            [key]: {
+              workJobId: job.id,
+              progress: job.progress?.step ?? t("queueing"),
+            },
+          }));
+          void trackCraftWork(job.id, job.profileId, job.jobId);
+        }
+      })
+      .catch(() => undefined);
+  }, [t, trackCraftWork]);
+
+  useEffect(() => {
     if (!profileId || !jobId) {
       setResult(null);
       return;
     }
-    if (busy) return;
     let cancelled = false;
-    fetch(`/api/crafts?profileId=${encodeURIComponent(profileId)}&jobId=${encodeURIComponent(jobId)}`)
-      .then((response) => response.json())
-      .then((payload) => {
-        if (cancelled) return;
-        setResult(payload.craft?.result ?? null);
+    loadCraftResult(profileId, jobId)
+      .then((craft) => {
+        if (!cancelled) setResult(craft);
       })
       .catch(() => {
         if (!cancelled) setResult(null);
@@ -139,7 +234,11 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [profileId, jobId, busy]);
+  }, [profileId, jobId, loadCraftResult]);
+
+  useEffect(() => {
+    setError(null);
+  }, [profileId, jobId]);
 
   const selectedProfile = profiles.find((item) => item.id === profileId);
   const selectedJob = jobs.find((item) => item.id === jobId);
@@ -149,8 +248,8 @@ export default function HomePage() {
       setError(t("workbenchNeedBoth"));
       return;
     }
-    setBusy(true);
-    setProgress(t("enqueueing"));
+    if (currentSession) return;
+
     setError(null);
     const forProfile = profileId;
     const forJob = jobId;
@@ -173,18 +272,15 @@ export default function HomePage() {
       const payload = await readResponseJson<{ error?: string; jobId?: string }>(response, "Craft API");
       if (!response.ok) throw new Error(payload.error ?? t("craftFail"));
       if (!payload.jobId) throw new Error(payload.error ?? t("enqueueFail"));
-      const crafted = await waitForWorkJob<CraftResult>(payload.jobId, (step, status) => {
-        setProgress(step?.step ?? status ?? t("queueing"));
-      });
-      if (pairRef.current.profileId === forProfile && pairRef.current.jobId === forJob) {
-        setResult(crafted);
-        setSRank(crafted.judgment?.verdict === "s_rank");
-      }
+
+      const key = craftPairKey(forProfile, forJob);
+      setCraftSessions((prev) => ({
+        ...prev,
+        [key]: { workJobId: payload.jobId!, progress: t("enqueueing") },
+      }));
+      void trackCraftWork(payload.jobId, forProfile, forJob);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("unknownError"));
-    } finally {
-      setBusy(false);
-      setProgress("");
     }
   }
 
@@ -266,7 +362,11 @@ export default function HomePage() {
                     <span className="block text-xs opacity-70">
                       {job.company || t("workbenchUnnamedCompany")} ·{" "}
                       {job.sourceKind === "url" ? "URL" : t("workbenchSourcePaste")}
-                      {job.id === jobId && result ? ` · ${t("workbenchBoundResume")}` : ""}
+                      {craftSessions[craftPairKey(profileId, job.id)]
+                        ? ` · ${craftSessions[craftPairKey(profileId, job.id)].progress || t("workbenchCrafting")}`
+                        : job.id === jobId && result
+                          ? ` · ${t("workbenchBoundResume")}`
+                          : ""}
                     </span>
                   </button>
                 ))}

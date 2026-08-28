@@ -90,6 +90,7 @@ export const en = {
   reasonThreshold: "Hit threshold",
   reasonMax: "Hit round limit",
   heavensEmpty: "Heaven's Door has not opened this book yet. Scores appear after crafting.",
+  heavensEmptyBusy: "Heaven's Door is reading this draft. Scores appear after each round.",
 
   profilesTitle: "Profiles",
   profilesDesc: "Stored in MongoDB profiles. Upload & parse, or fill by section.",

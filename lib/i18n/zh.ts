@@ -92,6 +92,7 @@ export const zh: Messages = {
   reasonThreshold: "达到放行线",
   reasonMax: "到达迭代上限",
   heavensEmpty: "天堂之门还没翻开这本书。生成之后，这里会出现总分、雷达图和强制修改指令。",
+  heavensEmptyBusy: "天堂之门正在判卷，每一轮结束后这里会更新分数。",
 
   profilesTitle: "档案库",
   profilesDesc: "存在 MongoDB 的 profiles 表。上传解析，或按栏目手填。",

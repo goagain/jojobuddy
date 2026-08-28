@@ -89,6 +89,30 @@ export async function getWork(id: string, userId: string): Promise<PublicWorkJob
   return doc ? toPublic(doc) : null;
 }
 
+export async function listActiveCraftJobs(userId: string) {
+  const docs = await (await jobs())
+    .find({
+      userId,
+      type: "craft",
+      status: { $in: ["queued", "running"] },
+    })
+    .sort({ createdAt: -1 })
+    .toArray();
+
+  return docs.flatMap((doc) => {
+    if (!doc._id) return [];
+    const payload = doc.payload as { profileId?: string; jobId?: string };
+    if (!payload.profileId || !payload.jobId) return [];
+    return [
+      {
+        ...toPublic(doc),
+        profileId: payload.profileId,
+        jobId: payload.jobId,
+      },
+    ];
+  });
+}
+
 export function workerId() {
   return `worker-${hostname()}-${process.pid}`;
 }
