@@ -181,6 +181,19 @@ export async function listJobs(userId: string): Promise<JobSummary[]> {
   return docs.map(toJobSummary);
 }
 
+export async function listUrlJobs(userId: string): Promise<Job[]> {
+  await ensureEntityIndexes();
+  const docs = await (await jobs())
+    .find({
+      userId,
+      sourceKind: "url",
+      sourceUrl: { $type: "string", $ne: "" },
+    })
+    .sort({ updatedAt: -1 })
+    .toArray();
+  return docs.map(toJob);
+}
+
 export async function getJob(id: string, userId: string): Promise<Job | null> {
   const doc = await (await jobs()).findOne({ _id: new ObjectId(id), userId });
   return doc ? toJob(doc) : null;

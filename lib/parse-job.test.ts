@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractJobInsightsHeuristic, normalizeJobInsights } from "@/lib/parse-job";
+import { formatJobLocations, resolveJobLocation } from "@/lib/job-location";
 
 describe("extractJobInsightsHeuristic", () => {
   it("extracts Apple-style qualification sections", () => {
@@ -42,5 +43,56 @@ describe("extractJobInsightsHeuristic", () => {
     expect(keywords.map((item) => item.toLowerCase())).toEqual(
       expect.arrayContaining(["go", "kubernetes", "terraform", "ci/cd"]),
     );
+  });
+
+  it("extracts cities from Location lines", () => {
+    const text = [
+      "Backend Engineer",
+      "Company: Example Corp",
+      "",
+      "Location: Austin, Texas, United States / Seattle, Washington, United States",
+      "",
+      "Minimum Qualifications",
+      "5+ years experience with distributed systems",
+    ].join("\n");
+
+    const { locations } = extractJobInsightsHeuristic(text);
+    expect(locations).toEqual(["Austin", "Seattle"]);
+  });
+});
+
+describe("normalizeJobInsights", () => {
+  it("normalizes AI location output to city names", () => {
+    const insights = normalizeJobInsights({
+      requirements: ["Go experience"],
+      keywords: ["kubernetes"],
+      locations: [
+        "Seattle, Washington, United States",
+        "Austin, Texas",
+        "Seattle",
+      ],
+    });
+    expect(insights.locations).toEqual(["Seattle", "Austin"]);
+    expect(formatJobLocations(insights.locations)).toBe("Seattle / Austin");
+  });
+});
+
+describe("resolveJobLocation", () => {
+  it("prefers AI cities over adapter fallback", () => {
+    expect(
+      resolveJobLocation(
+        { locations: ["Denver", "Austin"] },
+        "Seattle, Washington, United States",
+      ),
+    ).toBe("Denver / Austin");
+  });
+
+  it("falls back to adapter location when AI returns none", () => {
+    expect(
+      resolveJobLocation(
+        { locations: [] },
+        "Seattle, Washington, United States / Austin, Texas",
+      ),
+    ).toBe("Seattle / Austin");
   });
 });

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { useI18n } from "@/components/LocaleProvider";
 import type { Job } from "@/lib/entities";
+import { formatJobLocations } from "@/lib/job-location";
 import { formatHealthHint } from "@/lib/i18n";
 import { enqueueWork } from "@/lib/wait-work";
 import { workbenchHref } from "@/lib/workbench-link";
@@ -81,7 +82,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
     setProgress(t("jobAnalyzingAi"));
     setError(null);
     try {
-      const insights = await enqueueWork<{ requirements: string[]; keywords: string[] }>({
+      const insights = await enqueueWork<{ requirements: string[]; keywords: string[]; locations: string[] }>({
         type: "analyze_job",
         payload: { text },
         onProgress: (step, status) => {
@@ -92,6 +93,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
         ...prev,
         requirements: insights.requirements,
         keywords: insights.keywords,
+        location: formatJobLocations(insights.locations) || prev.location,
       }));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("parseFail"));

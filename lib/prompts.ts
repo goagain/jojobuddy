@@ -246,7 +246,8 @@ Extract ONLY what is explicitly stated or clearly implied in the JD. Do not inve
 Output JSON only:
 {
   "requirements": string[],
-  "keywords": string[]
+  "keywords": string[],
+  "locations": string[]
 }
 
 requirements:
@@ -259,17 +260,23 @@ keywords:
 - 12–28 ATS-relevant terms: stacks, tools, domains, seniority signals, methodologies.
 - Prefer exact phrases from the JD when possible (e.g. "distributed systems", "on-call", "Rust").
 - No generic filler ("team player", "fast-paced") unless the JD emphasizes them.
-- Deduplicate; keep each keyword short (1–4 words).`;
+- Deduplicate; keep each keyword short (1–4 words).
+
+locations:
+- Every work city explicitly mentioned in the JD (office, hybrid, or onsite locations).
+- Short city names only — e.g. "Seattle", "Austin", "上海" — no state, country, or street address.
+- List each distinct city once. Use "Remote" only when the JD clearly indicates fully remote with no fixed city.
+- If no location is stated, return [].`;
 
 const ANALYZE_JOB_ACK =
-  "Understood. I will return only requirements and keywords JSON extracted faithfully from the JD.";
+  "Understood. I will return only requirements, keywords, and locations JSON extracted faithfully from the JD.";
 
 export function buildAnalyzeJobMessages(jobDescription: string): ChatMessage[] {
   return [
     { role: "system", content: ANALYZE_JOB_SYSTEM },
     {
       role: "user",
-      content: "Confirm you will extract requirements and keywords from the JD only and return JSON.",
+      content: "Confirm you will extract requirements, keywords, and locations from the JD only and return JSON.",
     },
     { role: "assistant", content: ANALYZE_JOB_ACK },
     {
@@ -277,7 +284,7 @@ export function buildAnalyzeJobMessages(jobDescription: string): ChatMessage[] {
       content: `Job description:
 ${jobDescription}
 
-Extract requirements and keywords now. JSON only.`,
+Extract requirements, keywords, and locations now. JSON only.`,
     },
   ];
 }

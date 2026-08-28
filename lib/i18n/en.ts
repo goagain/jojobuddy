@@ -125,7 +125,7 @@ export const en = {
   jobsFilterTitle: "Search title",
   jobsFilterTitlePlaceholder: "e.g. backend, observability…",
   jobsFilterCompany: "Company",
-  jobsFilterLocation: "Location",
+  jobsFilterLocation: "City",
   jobsFilterLocationUnknown: "No location",
   jobsFilterClearLocations: "Clear",
   jobsFilterAllCompanies: "All companies",
@@ -145,6 +145,12 @@ export const en = {
   cleanupStaleJobsDone: "Removed {count} jobs.",
   cleanupStaleJobsNone: "No jobs older than 30 days.",
   cleaningUp: "Cleaning…",
+  refreshJobs: "Reload URL jobs",
+  refreshJobsConfirm:
+    "Re-fetch all URL-based jobs and remove listings that are no longer available? This may take a while and uses your parse model.",
+  refreshJobsDone: "Updated {updated}, removed {deleted}, skipped {skipped}.",
+  refreshJobsNone: "No URL-based jobs to reload.",
+  refreshingJobs: "Reloading…",
   readJobsFail: "Failed to load jobs",
   open: "Open",
 

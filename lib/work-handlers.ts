@@ -3,12 +3,14 @@ import { getJob, getProfile } from "./entity-store";
 import { fetchJobPage } from "./extract-url";
 import { pickParseRuntime, resolveRuntime } from "./llm-store";
 import { analyzeJobDescription } from "./parse-job";
+import { resolveJobLocation } from "./job-location";
 import { structureResume } from "./parse-resume";
 import { uid } from "./resume-factory";
-import type { AnalyzeJobPayload, CraftPayload, ParseResumePayload, ParseUrlPayload } from "./work-types";
+import type { AnalyzeJobPayload, CraftPayload, ParseResumePayload, ParseUrlPayload, RefreshJobsPayload } from "./work-types";
 import type { WorkJobDoc } from "./work-store";
 import { updateWorkProgress } from "./work-store";
 import { craftResume } from "./workflow";
+import { refreshUserJobs } from "./refresh-jobs";
 
 export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
   const id = job._id?.toHexString();
@@ -26,7 +28,7 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
     return {
       title: page.title,
       company: page.company,
-      location: page.location,
+      location: resolveJobLocation(insights, page.location),
       sourceKind: "url",
       sourceUrl: page.url,
       sourceText: page.text,
@@ -43,6 +45,16 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
     const runtime = await pickParseRuntime(job.userId, payload.modelId || undefined);
     const insights = await analyzeJobDescription(payload.text, runtime);
     return insights;
+  }
+
+  if (job.type === "refresh_jobs") {
+    void (job.payload as RefreshJobsPayload);
+    await updateWorkProgress(id, { step: "Loading URL jobs", percent: 5 });
+    const runtime = await pickParseRuntime(job.userId);
+    const result = await refreshUserJobs(job.userId, runtime, async (step, percent) => {
+      await updateWorkProgress(id, { step, percent });
+    });
+    return result;
   }
 
   if (job.type === "parse_resume") {

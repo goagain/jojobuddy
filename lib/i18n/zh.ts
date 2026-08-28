@@ -127,7 +127,7 @@ export const zh: Messages = {
   jobsFilterTitle: "搜索职位名称",
   jobsFilterTitlePlaceholder: "例如 backend、可观测性…",
   jobsFilterCompany: "公司",
-  jobsFilterLocation: "地点",
+  jobsFilterLocation: "城市",
   jobsFilterLocationUnknown: "未填地点",
   jobsFilterClearLocations: "清除",
   jobsFilterAllCompanies: "全部公司",
@@ -147,6 +147,12 @@ export const zh: Messages = {
   cleanupStaleJobsDone: "已删除 {count} 个职位。",
   cleanupStaleJobsNone: "没有 30 天前的职位。",
   cleaningUp: "清理中…",
+  refreshJobs: "重新加载 URL 职位",
+  refreshJobsConfirm:
+    "重新抓取所有来自链接的职位，并删除已失效的 listing？可能需要一些时间，并会调用解析模型。",
+  refreshJobsDone: "已更新 {updated} 个，删除 {deleted} 个，跳过 {skipped} 个。",
+  refreshJobsNone: "没有来自链接的职位可重新加载。",
+  refreshingJobs: "重新加载中…",
   readJobsFail: "读取职位失败",
   open: "打开",
 

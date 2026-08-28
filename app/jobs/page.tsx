@@ -7,17 +7,20 @@ import { useI18n } from "@/components/LocaleProvider";
 import type { JobSummary } from "@/lib/entities";
 import { formatAddedAt, matchesRecentWindow, type RecentWindow } from "@/lib/format-date";
 import { formatHealthHint } from "@/lib/i18n";
+import {
+  jobLocationKeys,
+  jobMatchesCityFilter,
+  parseJobCities,
+  UNNAMED_LOCATION,
+} from "@/lib/job-location";
 import { workbenchHref } from "@/lib/workbench-link";
+import { enqueueWork } from "@/lib/wait-work";
+import type { RefreshJobsResult } from "@/lib/refresh-jobs";
 
 const UNNAMED_COMPANY = "__unnamed__";
-const UNNAMED_LOCATION = "__unnamed__";
 
 function jobCompanyKey(job: JobSummary) {
   return job.company.trim() || UNNAMED_COMPANY;
-}
-
-function jobLocationKey(job: JobSummary) {
-  return job.location?.trim() || UNNAMED_LOCATION;
 }
 
 export default function JobsPage() {
@@ -27,6 +30,8 @@ export default function JobsPage() {
   const [ok, setOk] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cleaning, setCleaning] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState("");
   const [titleQuery, setTitleQuery] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
   const [addedWindow, setAddedWindow] = useState<RecentWindow>("");
@@ -44,7 +49,12 @@ export default function JobsPage() {
   }, [jobs, locale]);
 
   const locationOptions = useMemo(() => {
-    const names = new Set(jobs.map(jobLocationKey));
+    const names = new Set<string>();
+    for (const job of jobs) {
+      for (const city of jobLocationKeys(job)) {
+        names.add(city);
+      }
+    }
     return [...names].sort((a, b) => {
       if (a === UNNAMED_LOCATION) return 1;
       if (b === UNNAMED_LOCATION) return -1;
@@ -58,12 +68,17 @@ export default function JobsPage() {
     );
   }
 
+  const urlJobCount = useMemo(
+    () => jobs.filter((job) => job.sourceKind === "url" && job.sourceUrl).length,
+    [jobs],
+  );
+
   const filteredJobs = useMemo(() => {
     const query = titleQuery.trim().toLowerCase();
     const locationSet = new Set(locationFilter);
     return jobs.filter((job) => {
       if (companyFilter && jobCompanyKey(job) !== companyFilter) return false;
-      if (locationSet.size > 0 && !locationSet.has(jobLocationKey(job))) return false;
+      if (!jobMatchesCityFilter(job, locationSet)) return false;
       if (query && !job.title.toLowerCase().includes(query)) return false;
       if (!matchesRecentWindow(job.createdAt, addedWindow)) return false;
       if (!matchesRecentWindow(job.postedAt, postedWindow)) return false;
@@ -120,6 +135,39 @@ export default function JobsPage() {
     }
   }
 
+  async function refreshUrlJobs() {
+    if (urlJobCount === 0) {
+      window.alert(t("refreshJobsNone"));
+      return;
+    }
+    if (!window.confirm(t("refreshJobsConfirm"))) return;
+    setRefreshing(true);
+    setRefreshProgress("");
+    setError(null);
+    try {
+      const result = await enqueueWork<RefreshJobsResult>({
+        type: "refresh_jobs",
+        payload: {},
+        onProgress: (step, status) => {
+          setRefreshProgress(step?.step ?? status ?? t("queueing"));
+        },
+      });
+      window.alert(
+        t("refreshJobsDone", {
+          updated: String(result.updated),
+          deleted: String(result.deleted),
+          skipped: String(result.skipped),
+        }),
+      );
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("readJobsFail"));
+    } finally {
+      setRefreshing(false);
+      setRefreshProgress("");
+    }
+  }
+
   return (
     <div className="min-h-screen px-4 py-5 md:px-8">
       <AppHeader status={{ ok, hint }} />
@@ -136,7 +184,15 @@ export default function JobsPage() {
           <button
             type="button"
             className="btn"
-            disabled={cleaning || jobs.length === 0}
+            disabled={refreshing || cleaning || urlJobCount === 0}
+            onClick={() => void refreshUrlJobs()}
+          >
+            {refreshing ? refreshProgress || t("refreshingJobs") : t("refreshJobs")}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={cleaning || refreshing || jobs.length === 0}
             onClick={() => void cleanupStale()}
           >
             {cleaning ? t("cleaningUp") : t("cleanupStaleJobs")}
@@ -255,7 +311,7 @@ export default function JobsPage() {
                 <p className="text-sm muted">{job.company || t("workbenchUnnamedCompany")}</p>
                 {job.location ? (
                   <p className="text-sm muted">
-                    {t("location")}: {job.location}
+                    {t("location")}: {parseJobCities(job.location).join(" / ")}
                   </p>
                 ) : null}
                 <p className="mt-1 text-xs muted">

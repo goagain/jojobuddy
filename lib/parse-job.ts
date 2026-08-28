@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeJobLocations } from "./job-location";
 import { buildAnalyzeJobMessages } from "./prompts";
 import { chat, extractJsonObject } from "./llm";
 import type { LlmRuntime } from "./llm-types";
@@ -6,6 +7,7 @@ import type { LlmRuntime } from "./llm-types";
 export const jobInsightsSchema = z.object({
   requirements: z.array(z.string()).default([]),
   keywords: z.array(z.string()).default([]),
+  locations: z.array(z.string()).default([]),
 });
 
 export type JobInsights = z.infer<typeof jobInsightsSchema>;
@@ -161,14 +163,37 @@ export function normalizeJobInsights(raw: unknown): JobInsights {
   return jobInsightsSchema.parse({
     requirements: dedupe(asStringList(data.requirements)).slice(0, 24),
     keywords: dedupe(asStringList(data.keywords)).slice(0, 32),
+    locations: normalizeJobLocations(dedupe(asStringList(data.locations))).slice(0, 12),
   });
+}
+
+const LOCATION_LINE_PATTERNS = [
+  /^Location[s]?\s*[:：]\s*(.+)$/im,
+  /^Work location[s]?\s*[:：]\s*(.+)$/im,
+  /^Office location[s]?\s*[:：]\s*(.+)$/im,
+  /^工作地点\s*[:：]\s*(.+)$/im,
+  /^地点\s*[:：]\s*(.+)$/im,
+  /^工作地\s*[:：]\s*(.+)$/im,
+];
+
+function extractLocationsHeuristic(text: string): string[] {
+  const cities = new Set<string>();
+  for (const pattern of LOCATION_LINE_PATTERNS) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    for (const segment of match[1].split(/\s*\/\s*|\s+or\s+|\s+和\s+/i)) {
+      const city = normalizeJobLocations([segment])[0];
+      if (city && city.length >= 2) cities.add(city);
+    }
+  }
+  return [...cities];
 }
 
 /** Rule-based fallback when mock provider is used or the model fails. */
 export function extractJobInsightsHeuristic(text: string): JobInsights {
   const trimmed = text.trim();
   if (trimmed.length < 40) {
-    return { requirements: [], keywords: [] };
+    return { requirements: [], keywords: [], locations: [] };
   }
 
   const requirements: string[] = [];
@@ -198,6 +223,7 @@ export function extractJobInsightsHeuristic(text: string): JobInsights {
   return {
     requirements: dedupe(requirements).slice(0, 24),
     keywords: dedupe(keywords).slice(0, 32),
+    locations: extractLocationsHeuristic(trimmed),
   };
 }
 
@@ -207,7 +233,7 @@ export const extractJobInsights = extractJobInsightsHeuristic;
 export async function analyzeJobDescription(text: string, runtime: LlmRuntime): Promise<JobInsights> {
   const trimmed = text.trim();
   if (trimmed.length < 40) {
-    return { requirements: [], keywords: [] };
+    return { requirements: [], keywords: [], locations: [] };
   }
   if (runtime.kind === "mock") {
     return extractJobInsightsHeuristic(trimmed);
