@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import type { CraftResult } from "@/lib/types";
 import { useI18n } from "@/components/LocaleProvider";
@@ -24,7 +25,22 @@ export function ResultPane({
   downloadName?: string;
 }) {
   const { t } = useI18n();
-  const judgment = result?.judgment;
+  const [roundIndex, setRoundIndex] = useState(0);
+
+  const rounds = result?.rounds ?? [];
+  const hasMultipleRounds = rounds.length > 1;
+  const safeRoundIndex = hasMultipleRounds ? Math.min(roundIndex, rounds.length - 1) : 0;
+  const activeRound = rounds[safeRoundIndex];
+  const displayedMarkdown = activeRound?.resumeMarkdown ?? result?.resumeMarkdown ?? "";
+  const judgment = activeRound?.judgment ?? result?.judgment;
+
+  useEffect(() => {
+    if (!result) {
+      setRoundIndex(0);
+      return;
+    }
+    setRoundIndex(Math.max(0, result.rounds.length - 1));
+  }, [result?.resumeMarkdown, result?.rounds.length]);
 
   const dimensions = [
     ["keywordHit", t("dimKeyword"), "30%"],
@@ -34,12 +50,13 @@ export function ResultPane({
   ] as const;
 
   function downloadMarkdown() {
-    if (!result) return;
-    const blob = new Blob([result.resumeMarkdown], { type: "text/markdown;charset=utf-8" });
+    if (!displayedMarkdown) return;
+    const blob = new Blob([displayedMarkdown], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
+    const roundSuffix = hasMultipleRounds ? `-r${safeRoundIndex + 1}` : "";
     link.href = url;
-    link.download = `${fileStem(downloadName || "resume")}.md`;
+    link.download = `${fileStem(downloadName || "resume")}${roundSuffix}.md`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -95,6 +112,35 @@ export function ResultPane({
             </div>
           ) : null}
         </header>
+        {result && hasMultipleRounds ? (
+          <div className="no-print mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-black/50">
+              {t("roundIterations")}
+            </span>
+            {rounds.map((round, index) => {
+              const isActive = index === safeRoundIndex;
+              const isFinal = index === rounds.length - 1;
+              const label = isFinal
+                ? t("roundTabFinal", { n: round.round })
+                : t("roundTab", { n: round.round });
+              return (
+                <button
+                  key={round.round}
+                  type="button"
+                  className={`border-2 border-black px-2 py-1 text-[11px] font-black ${
+                    isActive ? "bg-[#6b3cff] text-white" : "bg-white text-black hover:bg-[#fff0c8]"
+                  }`}
+                  onClick={() => setRoundIndex(index)}
+                >
+                  {label}
+                  <span className="ml-1 opacity-80">
+                    {round.judgment.rank} {round.judgment.overall}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
         {result ? (
           <div className="resume-sheet print-resume">
             <Markdown
@@ -111,7 +157,7 @@ export function ResultPane({
                 ),
               }}
             >
-              {result.resumeMarkdown}
+              {displayedMarkdown}
             </Markdown>
           </div>
         ) : (
@@ -133,6 +179,11 @@ export function ResultPane({
         )}
         {judgment ? (
           <div className="grid gap-4 md:grid-cols-[200px_1fr]">
+            {hasMultipleRounds ? (
+              <p className="md:col-span-2 text-[11px] font-bold text-black/60">
+                {t("roundViewing", { current: safeRoundIndex + 1, total: rounds.length })}
+              </p>
+            ) : null}
             <div>
               <div className="mb-2 flex items-end gap-2">
                 <span className="display text-5xl font-black leading-none">{judgment.rank}</span>
