@@ -10,9 +10,14 @@ import { formatHealthHint } from "@/lib/i18n";
 import { workbenchHref } from "@/lib/workbench-link";
 
 const UNNAMED_COMPANY = "__unnamed__";
+const UNNAMED_LOCATION = "__unnamed__";
 
 function jobCompanyKey(job: JobSummary) {
   return job.company.trim() || UNNAMED_COMPANY;
+}
+
+function jobLocationKey(job: JobSummary) {
+  return job.location?.trim() || UNNAMED_LOCATION;
 }
 
 export default function JobsPage() {
@@ -26,6 +31,7 @@ export default function JobsPage() {
   const [companyFilter, setCompanyFilter] = useState("");
   const [addedWindow, setAddedWindow] = useState<RecentWindow>("");
   const [postedWindow, setPostedWindow] = useState<RecentWindow>("");
+  const [locationFilter, setLocationFilter] = useState<string[]>([]);
   const [craftByJobId, setCraftByJobId] = useState<Record<string, { profileId: string }>>({});
 
   const companyOptions = useMemo(() => {
@@ -37,16 +43,33 @@ export default function JobsPage() {
     });
   }, [jobs, locale]);
 
+  const locationOptions = useMemo(() => {
+    const names = new Set(jobs.map(jobLocationKey));
+    return [...names].sort((a, b) => {
+      if (a === UNNAMED_LOCATION) return 1;
+      if (b === UNNAMED_LOCATION) return -1;
+      return a.localeCompare(b, locale);
+    });
+  }, [jobs, locale]);
+
+  function toggleLocation(key: string) {
+    setLocationFilter((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
+    );
+  }
+
   const filteredJobs = useMemo(() => {
     const query = titleQuery.trim().toLowerCase();
+    const locationSet = new Set(locationFilter);
     return jobs.filter((job) => {
       if (companyFilter && jobCompanyKey(job) !== companyFilter) return false;
+      if (locationSet.size > 0 && !locationSet.has(jobLocationKey(job))) return false;
       if (query && !job.title.toLowerCase().includes(query)) return false;
       if (!matchesRecentWindow(job.createdAt, addedWindow)) return false;
       if (!matchesRecentWindow(job.postedAt, postedWindow)) return false;
       return true;
     });
-  }, [jobs, titleQuery, companyFilter, addedWindow, postedWindow]);
+  }, [jobs, titleQuery, companyFilter, locationFilter, addedWindow, postedWindow]);
 
   async function reload() {
     const [health, list, craftSummary] = await Promise.all([
@@ -176,6 +199,42 @@ export default function JobsPage() {
               <option value="unknown">{t("jobsFilterPostedUnknown")}</option>
             </select>
           </label>
+          {locationOptions.length > 0 ? (
+            <div className="field-label md:col-span-2 xl:col-span-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>{t("jobsFilterLocation")}</span>
+                {locationFilter.length > 0 ? (
+                  <button
+                    type="button"
+                    className="text-xs font-bold kicker-gold underline"
+                    onClick={() => setLocationFilter([])}
+                  >
+                    {t("jobsFilterClearLocations")}
+                  </button>
+                ) : null}
+              </div>
+              <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
+                {locationOptions.map((location) => {
+                  const selected = locationFilter.includes(location);
+                  return (
+                    <label
+                      key={location}
+                      className={`flex cursor-pointer items-center gap-2 border-2 px-2 py-1.5 text-xs font-bold ${
+                        selected ? "choice-on" : "choice"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleLocation(location)}
+                      />
+                      {location === UNNAMED_LOCATION ? t("jobsFilterLocationUnknown") : location}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {jobs.length === 0 ? (
@@ -194,6 +253,11 @@ export default function JobsPage() {
                 </p>
                 <h2 className="text-lg font-black">{job.title}</h2>
                 <p className="text-sm muted">{job.company || t("workbenchUnnamedCompany")}</p>
+                {job.location ? (
+                  <p className="text-sm muted">
+                    {t("location")}: {job.location}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-xs muted">
                   {t("addedAt", { date: formatAddedAt(job.createdAt, locale) })}
                 </p>

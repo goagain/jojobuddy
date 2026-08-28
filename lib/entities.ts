@@ -51,6 +51,7 @@ export type JobSummary = {
   id: string;
   title: string;
   company: string;
+  location?: string;
   sourceKind: "paste" | "url";
   sourceUrl?: string;
   excerpt: string;

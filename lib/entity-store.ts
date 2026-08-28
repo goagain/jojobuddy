@@ -92,6 +92,7 @@ function toJobSummary(doc: JobDoc): JobSummary {
     id: job.id,
     title: job.title,
     company: job.company,
+    location: job.location,
     sourceKind: job.sourceKind,
     sourceUrl: job.sourceUrl,
     excerpt: excerpt(job.parsedText || job.sourceText),
