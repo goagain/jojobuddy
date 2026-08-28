@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ensureMasterExperiences,
   ensureMasterProjects,
   linkifyEmails,
   linkifyUrls,
@@ -90,6 +91,37 @@ describe("linkifyEmails", () => {
     expect(linkifyEmails("Reach me at foo@bar.com today.")).toBe(
       "Reach me at [foo@bar.com](mailto:foo@bar.com) today.",
     );
+  });
+});
+
+describe("ensureMasterExperiences", () => {
+  it("restores work experiences dropped by the model", () => {
+    const restored = ensureMasterExperiences({ ...base, experiences: [] }, masterResume({
+      experiences: [
+        {
+          id: "exp-1",
+          company: "Highspot",
+          title: "Senior Software Engineer",
+          startDate: "2024-04",
+          endDate: "present",
+          businessContext: "",
+          techStack: [],
+          bullets: [{ id: "b1", raw: "Built observability pipelines." }],
+        },
+        {
+          id: "exp-2",
+          company: "Microsoft",
+          title: "Software Engineer",
+          startDate: "2022-03",
+          endDate: "2024-01",
+          businessContext: "",
+          techStack: [],
+          bullets: [{ id: "b2", raw: "Shipped Office tooling." }],
+        },
+      ],
+    }));
+
+    expect(restored.experiences.map((item) => item.company)).toEqual(["Highspot", "Microsoft"]);
   });
 });
 

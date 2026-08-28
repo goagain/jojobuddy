@@ -1,7 +1,7 @@
 import type { CraftedProject, CraftedResumeDoc } from "./crafted-schema";
 import { craftedResumeSchema } from "./crafted-schema";
 import { resumeDateValue } from "./resume-factory";
-import type { MasterResume } from "./schema";
+import type { Experience, MasterResume } from "./schema";
 
 const LABELS = {
   en: {
@@ -204,6 +204,55 @@ function masterProjectToCrafted(project: MasterResume["projects"][number]): Craf
   };
 }
 
+function normalizeExperienceKey(exp: { company: string; title: string }) {
+  return `${exp.company.trim().toLowerCase()}|${exp.title.trim().toLowerCase()}`;
+}
+
+function bulletTextFromMaster(bullet: Experience["bullets"][number]) {
+  return bullet.raw?.trim() || [bullet.action, bullet.result].filter(Boolean).join(" ").trim();
+}
+
+function masterExperienceToCrafted(
+  experience: Experience,
+  maxBullets = 2,
+): CraftedResumeDoc["experiences"][number] {
+  const bullets = experience.bullets
+    .map(bulletTextFromMaster)
+    .filter(Boolean)
+    .slice(0, maxBullets);
+  if (bullets.length === 0 && experience.businessContext.trim()) {
+    bullets.push(experience.businessContext.trim());
+  }
+  return {
+    title: experience.title,
+    company: experience.company,
+    location: experience.location ?? "",
+    startDate: experience.startDate,
+    endDate: experience.endDate,
+    bullets,
+  };
+}
+
+/** Re-insert any Master Resume roles the model dropped so the timeline has no gaps. */
+export function ensureMasterExperiences(
+  crafted: CraftedResumeDoc,
+  masterResume: MasterResume,
+): CraftedResumeDoc {
+  const seen = new Set(
+    crafted.experiences.map((experience) => normalizeExperienceKey(experience)).filter(Boolean),
+  );
+  const experiences = [...crafted.experiences];
+
+  for (const experience of masterResume.experiences) {
+    const key = normalizeExperienceKey(experience);
+    if (!key || seen.has(key)) continue;
+    experiences.push(masterExperienceToCrafted(experience));
+    seen.add(key);
+  }
+
+  return sortCraftedResumeDoc({ ...crafted, experiences });
+}
+
 /** Re-insert any Master Resume projects the model dropped. */
 export function ensureMasterProjects(crafted: CraftedResumeDoc, masterResume: MasterResume): CraftedResumeDoc {
   const seen = new Set(crafted.projects.map((project) => normalizeProjectKey(project.name)).filter(Boolean));
@@ -221,5 +270,5 @@ export function ensureMasterProjects(crafted: CraftedResumeDoc, masterResume: Ma
 
 export function parseAndNormalizeCrafted(raw: unknown, masterResume?: MasterResume): CraftedResumeDoc {
   const crafted = sortCraftedResumeDoc(craftedResumeSchema.parse(raw));
-  return masterResume ? ensureMasterProjects(crafted, masterResume) : crafted;
+  return masterResume ? ensureMasterExperiences(crafted, masterResume) : crafted;
 }
