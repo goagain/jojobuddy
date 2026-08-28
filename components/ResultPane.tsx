@@ -107,9 +107,22 @@ export function ResultPane({
     <section className="grid min-h-0 gap-4 xl:grid-rows-[1.15fr_0.85fr]">
       <article className="min-h-[320px] overflow-auto border-2 border-[#e2c56a] bg-[#fff8ea] p-6 text-[#1a1208] shadow-[6px_6px_0_rgba(45,41,64,0.12)]">
         <header className="no-print mb-4 flex items-end justify-between gap-3">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="display text-[11px] tracking-[0.35em] text-[#6b3cff]">STAR PLATINUM</p>
-            <h2 className="text-xl font-black">{t("starTitle")}</h2>
+            <div className="flex flex-wrap items-end gap-3">
+              <h2 className="text-xl font-black">{t("starTitle")}</h2>
+              {judgment ? (
+                <div className="border-2 border-black bg-white px-2 py-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-black/50">
+                    {t("starPreviewScore")}
+                  </p>
+                  <p className="leading-none">
+                    <span className="display text-2xl font-black">{judgment.rank}</span>
+                    <span className="ml-2 text-xl font-black">{judgment.overall}</span>
+                  </p>
+                </div>
+              ) : null}
+            </div>
             {result?.usedModels ? (
               <p className="text-[11px] font-bold text-black/60">
                 {result.usedModels.generator.providerName} / {result.usedModels.generator.label}

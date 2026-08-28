@@ -115,6 +115,11 @@ export type CraftJobSummary = {
   updatedAt: string;
 };
 
+export type CraftPairSummary = CraftJobSummary & {
+  rank: string;
+  overall: number;
+};
+
 /** Most recently updated craft per job for this user. */
 export async function listLatestCraftsByJob(userId: string): Promise<CraftJobSummary[]> {
   await ensureCraftIndexes();
@@ -132,6 +137,44 @@ export async function listLatestCraftsByJob(userId: string): Promise<CraftJobSum
     });
   }
   return [...byJob.values()];
+}
+
+/** Saved crafts for one profile, including ATS score for workbench previews. */
+export async function listCraftSummariesForProfile(
+  userId: string,
+  profileId: string,
+): Promise<CraftPairSummary[]> {
+  await ensureCraftIndexes();
+  const docs = await (await crafts())
+    .find(
+      { userId, profileId },
+      {
+        projection: {
+          jobId: 1,
+          profileId: 1,
+          updatedAt: 1,
+          "result.judgment.rank": 1,
+          "result.judgment.overall": 1,
+        },
+      },
+    )
+    .sort({ updatedAt: -1 })
+    .toArray();
+
+  return docs.flatMap((doc) => {
+    const rank = doc.result?.judgment?.rank;
+    const overall = doc.result?.judgment?.overall;
+    if (!rank || overall === undefined) return [];
+    return [
+      {
+        jobId: doc.jobId,
+        profileId: doc.profileId,
+        updatedAt: doc.updatedAt.toISOString(),
+        rank,
+        overall,
+      },
+    ];
+  });
 }
 
 export async function deleteCraftsForProfile(profileId: string) {

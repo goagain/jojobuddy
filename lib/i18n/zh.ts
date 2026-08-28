@@ -52,6 +52,8 @@ export const zh: Messages = {
   workbenchUnnamedCompany: "未填公司",
   workbenchSourcePaste: "粘贴",
   workbenchBoundResume: "已有定制",
+  workbenchCraftScore: "{rank} {overall}",
+  starPreviewScore: "分数",
   workbenchGo: "去工作台",
   workbenchGoWithProfile: "用此档案生成",
   workbenchGoWithJob: "用此职位生成",

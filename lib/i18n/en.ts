@@ -50,6 +50,8 @@ export const en = {
   workbenchUnnamedCompany: "No company",
   workbenchSourcePaste: "Paste",
   workbenchBoundResume: "crafted",
+  workbenchCraftScore: "{rank} {overall}",
+  starPreviewScore: "Score",
   workbenchGo: "Open workbench",
   workbenchGoWithProfile: "Craft with this profile",
   workbenchGoWithJob: "Craft for this job",

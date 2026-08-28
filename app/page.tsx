@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { ResultPane } from "@/components/ResultPane";
 import { SRankOverlay } from "@/components/SRankOverlay";
@@ -11,7 +12,15 @@ import { formatHealthHint } from "@/lib/i18n";
 import type { PublicModel } from "@/lib/llm-types";
 import type { CraftResult } from "@/lib/types";
 import { readResponseJson } from "@/lib/http-json";
+import { type CraftScore } from "@/lib/craft-score";
 import { waitForWorkJob } from "@/lib/wait-work";
+import {
+  buildWorkbenchSearch,
+  parseWorkbenchSearch,
+  workbenchHref,
+  workbenchSearchEquals,
+  type WorkbenchSearchState,
+} from "@/lib/workbench-search";
 
 const PROFILE_KEY = "jojobuddy.profile-id";
 const JOB_KEY = "jojobuddy.job-id";
@@ -78,6 +87,22 @@ function ModelSelect({
 }
 
 export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen px-4 py-5 md:px-8">
+          <div className="panel text-sm muted">Loading…</div>
+        </div>
+      }
+    >
+      <WorkbenchPage />
+    </Suspense>
+  );
+}
+
+function WorkbenchPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useI18n();
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [jobs, setJobs] = useState<JobSummary[]>([]);
@@ -89,6 +114,7 @@ export default function HomePage() {
   const [autoRefine, setAutoRefine] = useState(true);
   const [threshold, setThreshold] = useState(85);
   const [craftSessions, setCraftSessions] = useState<Record<string, CraftSession>>({});
+  const [craftScoresByJobId, setCraftScoresByJobId] = useState<Record<string, CraftScore>>({});
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CraftResult | null>(null);
   const [sRank, setSRank] = useState(false);
@@ -96,6 +122,8 @@ export default function HomePage() {
   const [ok, setOk] = useState(false);
   const pairRef = useRef({ profileId: "", jobId: "" });
   const pollingRef = useRef(new Set<string>());
+  const readyRef = useRef(false);
+  const loadedRef = useRef(false);
   pairRef.current = { profileId, jobId };
 
   const currentPairKey = profileId && jobId ? craftPairKey(profileId, jobId) : "";
@@ -103,12 +131,66 @@ export default function HomePage() {
   const busy = Boolean(currentSession);
   const progress = currentSession?.progress ?? "";
 
+  const persistWorkbenchPrefs = useCallback((state: WorkbenchSearchState) => {
+    if (state.profileId) window.localStorage.setItem(PROFILE_KEY, state.profileId);
+    if (state.jobId) window.localStorage.setItem(JOB_KEY, state.jobId);
+    if (state.generatorModelId) window.localStorage.setItem(GENERATOR_KEY, state.generatorModelId);
+    if (state.judgeModelId) window.localStorage.setItem(JUDGE_KEY, state.judgeModelId);
+  }, []);
+
+  const syncWorkbenchUrl = useCallback(
+    (patch: Partial<WorkbenchSearchState>) => {
+      const nextState: WorkbenchSearchState = {
+        profileId: patch.profileId ?? profileId,
+        jobId: patch.jobId ?? jobId,
+        generatorModelId: patch.generatorModelId ?? generatorModelId,
+        judgeModelId: patch.judgeModelId ?? judgeModelId,
+        autoRefine: patch.autoRefine ?? autoRefine,
+        threshold: patch.threshold ?? threshold,
+      };
+      const nextParams = buildWorkbenchSearch(nextState);
+      const currentParams = new URLSearchParams(searchParams.toString());
+      if (!workbenchSearchEquals(nextParams, currentParams)) {
+        router.replace(workbenchHref(nextState), { scroll: false });
+      }
+      persistWorkbenchPrefs(nextState);
+    },
+    [
+      autoRefine,
+      generatorModelId,
+      jobId,
+      judgeModelId,
+      persistWorkbenchPrefs,
+      profileId,
+      router,
+      searchParams,
+      threshold,
+    ],
+  );
+
   const loadCraftResult = useCallback(async (nextProfileId: string, nextJobId: string) => {
     const response = await fetch(
       `/api/crafts?profileId=${encodeURIComponent(nextProfileId)}&jobId=${encodeURIComponent(nextJobId)}`,
     );
     const payload = await response.json();
     return (payload.craft?.result ?? null) as CraftResult | null;
+  }, []);
+
+  const loadCraftScores = useCallback(async (forProfileId: string) => {
+    if (!forProfileId) {
+      setCraftScoresByJobId({});
+      return;
+    }
+    const response = await fetch(
+      `/api/crafts/summary?profileId=${encodeURIComponent(forProfileId)}`,
+    );
+    const payload = await response.json();
+    const next: Record<string, CraftScore> = {};
+    for (const craft of payload.crafts ?? []) {
+      if (!craft?.jobId || !craft?.rank || craft.overall === undefined) continue;
+      next[craft.jobId] = { rank: craft.rank, overall: craft.overall };
+    }
+    setCraftScoresByJobId(next);
   }, []);
 
   const updateCraftProgress = useCallback((key: string, nextProgress: string) => {
@@ -158,19 +240,21 @@ export default function HomePage() {
           try {
             const saved = await loadCraftResult(forProfile, forJob);
             if (saved) setResult(saved);
+            void loadCraftScores(forProfile);
           } catch {
             // keep last in-memory result if reload fails
           }
         }
       }
     },
-    [clearCraftSession, loadCraftResult, t, updateCraftProgress],
+    [clearCraftSession, loadCraftResult, loadCraftScores, t, updateCraftProgress],
   );
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const queryProfile = params.get("profileId") ?? "";
-    const queryJob = params.get("jobId") ?? "";
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+
+    const fromUrl = parseWorkbenchSearch(searchParams);
     const savedProfile = window.localStorage.getItem(PROFILE_KEY) ?? "";
     const savedJob = window.localStorage.getItem(JOB_KEY) ?? "";
     const savedGenerator = window.localStorage.getItem(GENERATOR_KEY) ?? "";
@@ -194,24 +278,108 @@ export default function HomePage() {
         const jobIds = new Set(nextJobs.map((item) => item.id));
         const modelIds = new Set(listed.map((item) => item.id));
         const nextProfileId =
-          (queryProfile && profileIds.has(queryProfile) ? queryProfile : null) ??
+          (fromUrl.profileId && profileIds.has(fromUrl.profileId) ? fromUrl.profileId : null) ??
           (profileIds.has(savedProfile) ? savedProfile : null) ??
           nextProfiles[0]?.id ??
           "";
         const nextJobId =
-          (queryJob && jobIds.has(queryJob) ? queryJob : null) ??
+          (fromUrl.jobId && jobIds.has(fromUrl.jobId) ? fromUrl.jobId : null) ??
           (jobIds.has(savedJob) ? savedJob : null) ??
           nextJobs[0]?.id ??
           "";
+        const nextGeneratorModelId =
+          (fromUrl.generatorModelId && modelIds.has(fromUrl.generatorModelId)
+            ? fromUrl.generatorModelId
+            : null) ??
+          (modelIds.has(savedGenerator) ? savedGenerator : null) ??
+          listed[0]?.id ??
+          "";
+        const nextJudgeModelId =
+          (fromUrl.judgeModelId && modelIds.has(fromUrl.judgeModelId) ? fromUrl.judgeModelId : null) ??
+          (modelIds.has(savedJudge) ? savedJudge : null) ??
+          listed[0]?.id ??
+          "";
+        const nextAutoRefine = fromUrl.autoRefine ?? true;
+        const nextThreshold =
+          fromUrl.threshold !== undefined &&
+          fromUrl.threshold >= 60 &&
+          fromUrl.threshold <= 99
+            ? fromUrl.threshold
+            : 85;
+
         setProfileId(nextProfileId);
         setJobId(nextJobId);
-        if (nextProfileId) window.localStorage.setItem(PROFILE_KEY, nextProfileId);
-        if (nextJobId) window.localStorage.setItem(JOB_KEY, nextJobId);
-        setGeneratorModelId(modelIds.has(savedGenerator) ? savedGenerator : (listed[0]?.id ?? ""));
-        setJudgeModelId(modelIds.has(savedJudge) ? savedJudge : (listed[0]?.id ?? ""));
+        setGeneratorModelId(nextGeneratorModelId);
+        setJudgeModelId(nextJudgeModelId);
+        setAutoRefine(nextAutoRefine);
+        setThreshold(nextThreshold);
+
+        const resolvedState: WorkbenchSearchState = {
+          profileId: nextProfileId || undefined,
+          jobId: nextJobId || undefined,
+          generatorModelId: nextGeneratorModelId || undefined,
+          judgeModelId: nextJudgeModelId || undefined,
+          autoRefine: nextAutoRefine,
+          threshold: nextThreshold,
+        };
+        persistWorkbenchPrefs(resolvedState);
+        const resolvedParams = buildWorkbenchSearch(resolvedState);
+        if (!workbenchSearchEquals(resolvedParams, searchParams)) {
+          router.replace(workbenchHref(resolvedState), { scroll: false });
+        }
+        readyRef.current = true;
       })
       .catch(() => setHint(t("readFail")));
-  }, [t]);
+  }, [persistWorkbenchPrefs, router, t]);
+
+  useEffect(() => {
+    if (!readyRef.current || profiles.length === 0 && jobs.length === 0 && models.length === 0) {
+      return;
+    }
+    const parsed = parseWorkbenchSearch(searchParams);
+    const profileIds = new Set(profiles.map((item) => item.id));
+    const jobIds = new Set(jobs.map((item) => item.id));
+    const modelIds = new Set(models.map((item) => item.id));
+
+    if (parsed.profileId && profileIds.has(parsed.profileId) && parsed.profileId !== profileId) {
+      setProfileId(parsed.profileId);
+    }
+    if (parsed.jobId && jobIds.has(parsed.jobId) && parsed.jobId !== jobId) {
+      setJobId(parsed.jobId);
+    }
+    if (
+      parsed.generatorModelId &&
+      modelIds.has(parsed.generatorModelId) &&
+      parsed.generatorModelId !== generatorModelId
+    ) {
+      setGeneratorModelId(parsed.generatorModelId);
+    }
+    if (parsed.judgeModelId && modelIds.has(parsed.judgeModelId) && parsed.judgeModelId !== judgeModelId) {
+      setJudgeModelId(parsed.judgeModelId);
+    }
+    if (parsed.autoRefine !== undefined && parsed.autoRefine !== autoRefine) {
+      setAutoRefine(parsed.autoRefine);
+    }
+    if (
+      parsed.threshold !== undefined &&
+      parsed.threshold >= 60 &&
+      parsed.threshold <= 99 &&
+      parsed.threshold !== threshold
+    ) {
+      setThreshold(parsed.threshold);
+    }
+  }, [
+    autoRefine,
+    generatorModelId,
+    jobId,
+    judgeModelId,
+    jobs,
+    models,
+    profileId,
+    profiles,
+    searchParams,
+    threshold,
+  ]);
 
   useEffect(() => {
     fetch("/api/craft/active")
@@ -234,6 +402,10 @@ export default function HomePage() {
   }, [t, trackCraftWork]);
 
   useEffect(() => {
+    void loadCraftScores(profileId);
+  }, [loadCraftScores, profileId]);
+
+  useEffect(() => {
     if (!profileId || !jobId) {
       setResult(null);
       return;
@@ -241,7 +413,15 @@ export default function HomePage() {
     let cancelled = false;
     loadCraftResult(profileId, jobId)
       .then((craft) => {
-        if (!cancelled) setResult(craft);
+        if (!cancelled) {
+          setResult(craft);
+          if (craft?.judgment) {
+            setCraftScoresByJobId((prev) => ({
+              ...prev,
+              [jobId]: { rank: craft.judgment.rank, overall: craft.judgment.overall },
+            }));
+          }
+        }
       })
       .catch(() => {
         if (!cancelled) setResult(null);
@@ -268,10 +448,7 @@ export default function HomePage() {
     setError(null);
     const forProfile = profileId;
     const forJob = jobId;
-    window.localStorage.setItem(PROFILE_KEY, profileId);
-    window.localStorage.setItem(JOB_KEY, jobId);
-    window.localStorage.setItem(GENERATOR_KEY, generatorModelId);
-    window.localStorage.setItem(JUDGE_KEY, judgeModelId);
+    syncWorkbenchUrl({});
     try {
       const response = await fetch("/api/craft", {
         method: "POST",
@@ -328,7 +505,10 @@ export default function HomePage() {
                   <button
                     key={profile.id}
                     type="button"
-                    onClick={() => setProfileId(profile.id)}
+                    onClick={() => {
+                      setProfileId(profile.id);
+                      syncWorkbenchUrl({ profileId: profile.id });
+                    }}
                     className={`w-full border-2 px-3 py-2 text-left ${
                       profile.id === profileId ? "choice-on" : "choice"
                     }`}
@@ -364,11 +544,17 @@ export default function HomePage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {jobs.map((job) => (
+                {jobs.map((job) => {
+                  const craftScore = craftScoresByJobId[job.id];
+                  const activeSession = craftSessions[craftPairKey(profileId, job.id)];
+                  return (
                   <button
                     key={job.id}
                     type="button"
-                    onClick={() => setJobId(job.id)}
+                    onClick={() => {
+                      setJobId(job.id);
+                      syncWorkbenchUrl({ jobId: job.id });
+                    }}
                     className={`w-full border-2 px-3 py-2 text-left ${
                       job.id === jobId ? "choice-on" : "choice"
                     }`}
@@ -377,14 +563,18 @@ export default function HomePage() {
                     <span className="block text-xs opacity-70">
                       {job.company || t("workbenchUnnamedCompany")} ·{" "}
                       {job.sourceKind === "url" ? "URL" : t("workbenchSourcePaste")}
-                      {craftSessions[craftPairKey(profileId, job.id)]
-                        ? ` · ${craftSessions[craftPairKey(profileId, job.id)].progress || t("workbenchCrafting")}`
-                        : job.id === jobId && result
-                          ? ` · ${t("workbenchBoundResume")}`
+                      {activeSession
+                        ? ` · ${activeSession.progress || t("workbenchCrafting")}`
+                        : craftScore
+                          ? ` · ${t("workbenchCraftScore", {
+                              rank: craftScore.rank,
+                              overall: String(craftScore.overall),
+                            })}`
                           : ""}
                     </span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
             {selectedJob ? (
@@ -399,7 +589,10 @@ export default function HomePage() {
                 label={t("workbenchGenerator")}
                 value={generatorModelId}
                 models={models}
-                onChange={setGeneratorModelId}
+                onChange={(id) => {
+                  setGeneratorModelId(id);
+                  syncWorkbenchUrl({ generatorModelId: id });
+                }}
                 emptyLabel={t("workbenchNeedModels")}
                 globalLabel={t("scopeGlobal")}
                 personalLabel={t("scopePersonal")}
@@ -409,7 +602,10 @@ export default function HomePage() {
                 label={t("workbenchJudge")}
                 value={judgeModelId}
                 models={models}
-                onChange={setJudgeModelId}
+                onChange={(id) => {
+                  setJudgeModelId(id);
+                  syncWorkbenchUrl({ judgeModelId: id });
+                }}
                 emptyLabel={t("workbenchNeedModels")}
                 globalLabel={t("scopeGlobal")}
                 personalLabel={t("scopePersonal")}
@@ -420,7 +616,11 @@ export default function HomePage() {
                 <input
                   type="checkbox"
                   checked={autoRefine}
-                  onChange={(event) => setAutoRefine(event.target.checked)}
+                  onChange={(event) => {
+                    const next = event.target.checked;
+                    setAutoRefine(next);
+                    syncWorkbenchUrl({ autoRefine: next });
+                  }}
                 />
                 {t("workbenchAutoRefine")}
               </label>
@@ -431,7 +631,11 @@ export default function HomePage() {
                   min={60}
                   max={99}
                   value={threshold}
-                  onChange={(event) => setThreshold(Number(event.target.value))}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    setThreshold(next);
+                    syncWorkbenchUrl({ threshold: next });
+                  }}
                   className="w-16"
                 />
               </label>
