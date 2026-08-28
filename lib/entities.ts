@@ -40,6 +40,8 @@ export type Job = {
   sourceUrl?: string;
   sourceText: string;
   parsedText: string;
+  requirements?: string[];
+  keywords?: string[];
   createdAt: string;
   updatedAt: string;
 };

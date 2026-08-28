@@ -1,4 +1,4 @@
-export const WORK_JOB_TYPES = ["parse_url", "parse_resume", "craft"] as const;
+export const WORK_JOB_TYPES = ["parse_url", "parse_resume", "analyze_job", "craft"] as const;
 
 export type WorkJobType = (typeof WORK_JOB_TYPES)[number];
 
@@ -17,6 +17,11 @@ export type ParseResumePayload = {
   kind: "upload" | "paste";
   filename?: string;
   mimeType?: string;
+};
+
+export type AnalyzeJobPayload = {
+  text: string;
+  modelId?: string;
 };
 
 export type CraftPayload = {

@@ -2,9 +2,10 @@ import { saveCraftedResume } from "./craft-store";
 import { getJob, getProfile } from "./entity-store";
 import { fetchJobPage } from "./extract-url";
 import { pickParseRuntime, resolveRuntime } from "./llm-store";
+import { analyzeJobDescription } from "./parse-job";
 import { structureResume } from "./parse-resume";
 import { uid } from "./resume-factory";
-import type { CraftPayload, ParseResumePayload, ParseUrlPayload } from "./work-types";
+import type { AnalyzeJobPayload, CraftPayload, ParseResumePayload, ParseUrlPayload } from "./work-types";
 import type { WorkJobDoc } from "./work-store";
 import { updateWorkProgress } from "./work-store";
 import { craftResume } from "./workflow";
@@ -18,7 +19,10 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
     const payload = job.payload as ParseUrlPayload;
     await updateWorkProgress(id, { step: "JS engine fetching page", percent: 20 });
     const page = await fetchJobPage(payload.url);
-    await updateWorkProgress(id, { step: "Cleaning job text", percent: 80 });
+    await updateWorkProgress(id, { step: "Analyzing requirements and keywords", percent: 55 });
+    const runtime = await pickParseRuntime(job.userId);
+    const insights = await analyzeJobDescription(page.text, runtime);
+    await updateWorkProgress(id, { step: "Cleaning job text", percent: 90 });
     return {
       title: page.title,
       company: page.company,
@@ -27,7 +31,17 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
       sourceUrl: page.url,
       sourceText: page.text,
       parsedText: page.text,
+      requirements: insights.requirements,
+      keywords: insights.keywords,
     };
+  }
+
+  if (job.type === "analyze_job") {
+    const payload = job.payload as AnalyzeJobPayload;
+    await updateWorkProgress(id, { step: "Analyzing requirements and keywords", percent: 30 });
+    const runtime = await pickParseRuntime(job.userId, payload.modelId || undefined);
+    const insights = await analyzeJobDescription(payload.text, runtime);
+    return insights;
   }
 
   if (job.type === "parse_resume") {

@@ -268,7 +268,10 @@ export const en = {
   jobInsights: "JD analysis",
   jobRequirements: "Requirements",
   jobKeywords: "Keywords",
-  jobInsightsEmpty: "Requirements and keywords appear here after you parse a URL or paste a JD.",
+  jobInsightsEmpty: "Parse a URL or paste a JD, then run AI analysis for requirements and keywords.",
+  jobAnalyzeAi: "AI analyze",
+  jobAnalyzingAi: "Analyzing…",
+  jobInsightsAiHint: "Uses your default parse model from Settings (same as resume parsing).",
 
   healthMongoDown: "MongoDB offline: {error}",
   healthOk: "Profiles {profiles} · Jobs {jobs} · Models {models} · {worker}",

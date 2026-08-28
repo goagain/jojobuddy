@@ -25,6 +25,8 @@ type JobDoc = {
   sourceUrl?: string;
   sourceText: string;
   parsedText: string;
+  requirements?: string[];
+  keywords?: string[];
   createdAt: Date;
   updatedAt: Date;
 };
@@ -74,6 +76,8 @@ function toJob(doc: JobDoc): Job {
     sourceUrl: doc.sourceUrl,
     sourceText: doc.sourceText,
     parsedText: doc.parsedText,
+    requirements: doc.requirements ?? [],
+    keywords: doc.keywords ?? [],
     createdAt: iso(doc.createdAt),
     updatedAt: iso(doc.updatedAt),
   };
@@ -185,6 +189,8 @@ export async function createJob(
     sourceUrl?: string;
     sourceText: string;
     parsedText: string;
+    requirements?: string[];
+    keywords?: string[];
   },
 ): Promise<Job> {
   const now = new Date();
@@ -198,6 +204,8 @@ export async function createJob(
     sourceUrl: input.sourceUrl,
     sourceText: input.sourceText,
     parsedText,
+    requirements: input.requirements?.map((item) => item.trim()).filter(Boolean),
+    keywords: input.keywords?.map((item) => item.trim()).filter(Boolean),
     createdAt: now,
     updatedAt: now,
   };
@@ -218,6 +226,12 @@ export async function updateJob(
   if (patch.sourceUrl !== undefined) $set.sourceUrl = patch.sourceUrl;
   if (patch.sourceText !== undefined) $set.sourceText = patch.sourceText;
   if (patch.parsedText !== undefined) $set.parsedText = patch.parsedText.trim();
+  if (patch.requirements !== undefined) {
+    $set.requirements = patch.requirements.map((item) => item.trim()).filter(Boolean);
+  }
+  if (patch.keywords !== undefined) {
+    $set.keywords = patch.keywords.map((item) => item.trim()).filter(Boolean);
+  }
   const result = await (await jobs()).findOneAndUpdate(
     { _id: new ObjectId(id), userId },
     { $set },

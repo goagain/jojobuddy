@@ -47,7 +47,7 @@ export async function waitForWorkJob<T>(
 }
 
 export async function enqueueWork<T>(input: {
-  type: "parse_url" | "parse_resume" | "craft";
+  type: "parse_url" | "parse_resume" | "analyze_job" | "craft";
   payload: unknown;
   onProgress?: (progress?: WorkProgress, status?: string) => void;
 }): Promise<T> {

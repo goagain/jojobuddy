@@ -1,7 +1,14 @@
-export type JobInsights = {
-  requirements: string[];
-  keywords: string[];
-};
+import { z } from "zod";
+import { buildAnalyzeJobMessages } from "./prompts";
+import { chat, extractJsonObject } from "./llm";
+import type { LlmRuntime } from "./llm-types";
+
+export const jobInsightsSchema = z.object({
+  requirements: z.array(z.string()).default([]),
+  keywords: z.array(z.string()).default([]),
+});
+
+export type JobInsights = z.infer<typeof jobInsightsSchema>;
 
 const REQUIREMENT_SECTIONS = [
   /^minimum qualifications?/i,
@@ -52,56 +59,24 @@ const KEYWORD_TERMS = [
   "opentelemetry",
   "new relic",
   "datadog",
-  "splunk",
-  "elasticsearch",
   "kafka",
   "redis",
   "postgresql",
-  "mysql",
-  "mongodb",
   "typescript",
-  "javascript",
   "python",
   "go",
   "golang",
   "rust",
   "java",
-  "c++",
-  "c#",
-  ".net",
-  "react",
-  "next.js",
-  "node.js",
   "grpc",
-  "rest",
-  "graphql",
   "ci/cd",
-  "gitlab ci",
-  "github actions",
-  "jenkins",
   "gitops",
   "microservices",
   "distributed systems",
-  "high concurrency",
   "observability",
-  "monitoring",
-  "alerting",
+  "control plane",
   "sre",
   "devops",
-  "control plane",
-  "operator",
-  "time-series",
-  "tsdb",
-  "metrics",
-  "tracing",
-  "logging",
-  "llm",
-  "machine learning",
-  "ai",
-  "linux",
-  "bash",
-  "agile",
-  "scrum",
 ];
 
 function normalizeLine(line: string) {
@@ -176,39 +151,21 @@ function dedupe(items: string[]) {
   return out;
 }
 
-function displayTerm(text: string, term: string) {
-  const pattern = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-  const match = text.match(pattern);
-  return match?.[0] ?? term;
+function asStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item).trim()).filter(Boolean);
 }
 
-function extractKeywords(text: string): string[] {
-  const found: string[] = [];
-  for (const term of KEYWORD_TERMS) {
-    const pattern = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-    if (pattern.test(text)) {
-      found.push(displayTerm(text, term));
-    }
-  }
-
-  for (const raw of text.split("\n")) {
-    const line = normalizeLine(raw);
-    if (!/[:：]/.test(line)) continue;
-    const [, value = ""] = line.split(/[:：]/, 2);
-    if (!value.includes(",")) continue;
-    for (const part of value.split(",")) {
-      const token = normalizeLine(part);
-      if (token.length >= 2 && token.length <= 40 && /[a-zA-Z]/.test(token)) {
-        found.push(token);
-      }
-    }
-  }
-
-  return dedupe(found).slice(0, 32);
+export function normalizeJobInsights(raw: unknown): JobInsights {
+  const data = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return jobInsightsSchema.parse({
+    requirements: dedupe(asStringList(data.requirements)).slice(0, 24),
+    keywords: dedupe(asStringList(data.keywords)).slice(0, 32),
+  });
 }
 
-/** Pull requirement bullets and JD keywords from parsed job text. */
-export function extractJobInsights(text: string): JobInsights {
+/** Rule-based fallback when mock provider is used or the model fails. */
+export function extractJobInsightsHeuristic(text: string): JobInsights {
   const trimmed = text.trim();
   if (trimmed.length < 40) {
     return { requirements: [], keywords: [] };
@@ -229,8 +186,38 @@ export function extractJobInsights(text: string): JobInsights {
     }
   }
 
+  const keywords: string[] = [];
+  for (const term of KEYWORD_TERMS) {
+    const pattern = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    if (pattern.test(trimmed)) {
+      const match = trimmed.match(pattern);
+      keywords.push(match?.[0] ?? term);
+    }
+  }
+
   return {
     requirements: dedupe(requirements).slice(0, 24),
-    keywords: extractKeywords(trimmed),
+    keywords: dedupe(keywords).slice(0, 32),
   };
+}
+
+/** @deprecated Use analyzeJobDescription; kept for tests. */
+export const extractJobInsights = extractJobInsightsHeuristic;
+
+export async function analyzeJobDescription(text: string, runtime: LlmRuntime): Promise<JobInsights> {
+  const trimmed = text.trim();
+  if (trimmed.length < 40) {
+    return { requirements: [], keywords: [] };
+  }
+  if (runtime.kind === "mock") {
+    return extractJobInsightsHeuristic(trimmed);
+  }
+
+  const content = await chat({
+    runtime,
+    json: true,
+    messages: buildAnalyzeJobMessages(trimmed.slice(0, 24000)),
+  });
+
+  return normalizeJobInsights(extractJsonObject(content));
 }

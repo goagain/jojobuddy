@@ -13,6 +13,8 @@ const createSchema = z.object({
   sourceUrl: z.string().optional(),
   sourceText: z.string().min(1, "Source cannot be empty"),
   parsedText: z.string().min(20, "Job description text is too short"),
+  requirements: z.array(z.string()).optional(),
+  keywords: z.array(z.string()).optional(),
 });
 
 export async function GET() {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { extractJobInsights } from "@/lib/parse-job";
+import { extractJobInsightsHeuristic, normalizeJobInsights } from "@/lib/parse-job";
 
-describe("extractJobInsights", () => {
+describe("extractJobInsightsHeuristic", () => {
   it("extracts Apple-style qualification sections", () => {
     const text = [
       "Software Engineer - Observability",
@@ -20,7 +20,7 @@ describe("extractJobInsights", () => {
       "Familiarity with OpenTelemetry",
     ].join("\n");
 
-    const { requirements, keywords } = extractJobInsights(text);
+    const { requirements, keywords } = extractJobInsightsHeuristic(text);
     expect(requirements.some((item) => /BS in CS/i.test(item))).toBe(true);
     expect(requirements.some((item) => /Prometheus/i.test(item))).toBe(true);
     expect(keywords.map((item) => item.toLowerCase())).toEqual(
@@ -37,7 +37,7 @@ describe("extractJobInsights", () => {
       "Improve CI/CD pipelines with Terraform",
     ].join("\n");
 
-    const { requirements, keywords } = extractJobInsights(text);
+    const { requirements, keywords } = extractJobInsightsHeuristic(text);
     expect(requirements.length).toBeGreaterThan(0);
     expect(keywords.map((item) => item.toLowerCase())).toEqual(
       expect.arrayContaining(["go", "kubernetes", "terraform", "ci/cd"]),

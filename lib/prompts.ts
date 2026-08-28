@@ -229,3 +229,46 @@ Extract the Master Resume JSON now.`,
 }
 
 export type { CraftedResumeDoc };
+
+export const ANALYZE_JOB_SYSTEM = `You analyze job descriptions for resume tailoring and ATS matching.
+
+Extract ONLY what is explicitly stated or clearly implied in the JD. Do not invent requirements.
+
+Output JSON only:
+{
+  "requirements": string[],
+  "keywords": string[]
+}
+
+requirements:
+- 6–16 concise bullets covering must-have qualifications, preferred qualifications, and core responsibilities.
+- Each bullet one line, actionable, faithful to the JD wording.
+- Merge duplicate ideas; split long paragraphs into separate bullets.
+- Use the JD's dominant language (English JD → English bullets; Chinese JD → Chinese bullets).
+
+keywords:
+- 12–28 ATS-relevant terms: stacks, tools, domains, seniority signals, methodologies.
+- Prefer exact phrases from the JD when possible (e.g. "distributed systems", "on-call", "Rust").
+- No generic filler ("team player", "fast-paced") unless the JD emphasizes them.
+- Deduplicate; keep each keyword short (1–4 words).`;
+
+const ANALYZE_JOB_ACK =
+  "Understood. I will return only requirements and keywords JSON extracted faithfully from the JD.";
+
+export function buildAnalyzeJobMessages(jobDescription: string): ChatMessage[] {
+  return [
+    { role: "system", content: ANALYZE_JOB_SYSTEM },
+    {
+      role: "user",
+      content: "Confirm you will extract requirements and keywords from the JD only and return JSON.",
+    },
+    { role: "assistant", content: ANALYZE_JOB_ACK },
+    {
+      role: "user",
+      content: `Job description:
+${jobDescription}
+
+Extract requirements and keywords now. JSON only.`,
+    },
+  ];
+}

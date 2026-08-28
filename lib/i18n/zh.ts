@@ -269,7 +269,10 @@ export const zh: Messages = {
   jobInsights: "职位解析",
   jobRequirements: "要求",
   jobKeywords: "关键词",
-  jobInsightsEmpty: "解析 URL 或粘贴 JD 后，这里会列出要求和关键词。",
+  jobInsightsEmpty: "解析 URL 或粘贴 JD 后，点「AI 解析」提取要求与关键词。",
+  jobAnalyzeAi: "AI 解析",
+  jobAnalyzingAi: "AI 解析中…",
+  jobInsightsAiHint: "使用设置页中的默认解析模型（与简历解析相同）。",
 
   healthMongoDown: "MongoDB 未连接：{error}",
   healthOk: "档案 {profiles} · 职位 {jobs} · 模型 {models} · {worker}",
