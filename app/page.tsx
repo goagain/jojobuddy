@@ -446,10 +446,26 @@ export default function HomePage() {
             </div>
             {selectedProfile && selectedJob ? (
               <p className="text-xs muted">
-                {t("workbenchCraftPair", {
-                  profile: selectedProfile.name,
-                  job: selectedJob.title,
-                })}
+                {t("workbenchCraftPairPrefix")}
+                <Link href={`/profiles/${selectedProfile.id}`} className="font-black kicker-gold underline">
+                  {selectedProfile.name}
+                </Link>
+                {t("workbenchCraftPairMid")}
+                {selectedJob.sourceKind === "url" && selectedJob.sourceUrl ? (
+                  <a
+                    href={selectedJob.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-black kicker-gold underline"
+                  >
+                    {selectedJob.title}
+                  </a>
+                ) : (
+                  <Link href={`/jobs/${selectedJob.id}`} className="font-black kicker-gold underline">
+                    {selectedJob.title}
+                  </Link>
+                )}
+                {t("workbenchCraftPairSuffix")}
               </p>
             ) : null}
             {error ? <p className="text-sm font-bold text-rose-700">{error}</p> : null}
@@ -459,9 +475,16 @@ export default function HomePage() {
           result={result}
           busy={busy}
           progress={progress}
-          boundLabel={
+          boundContext={
             selectedProfile && selectedJob
-              ? `${selectedProfile.name} · ${selectedJob.company ? `${selectedJob.company} / ` : ""}${selectedJob.title}`
+              ? {
+                  profileId: selectedProfile.id,
+                  profileLabel: selectedProfile.name,
+                  jobId: selectedJob.id,
+                  jobLabel: `${selectedJob.company ? `${selectedJob.company} / ` : ""}${selectedJob.title}`,
+                  jobSourceKind: selectedJob.sourceKind,
+                  jobSourceUrl: selectedJob.sourceUrl,
+                }
               : undefined
           }
           downloadName={

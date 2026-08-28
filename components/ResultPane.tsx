@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import type { CraftResult } from "@/lib/types";
@@ -11,17 +12,26 @@ function fileStem(value: string) {
   return cleaned.slice(0, 48) || "resume";
 }
 
+export type BoundContext = {
+  profileId: string;
+  profileLabel: string;
+  jobId: string;
+  jobLabel: string;
+  jobSourceKind: "paste" | "url";
+  jobSourceUrl?: string;
+};
+
 export function ResultPane({
   result,
   busy,
   progress,
-  boundLabel,
+  boundContext,
   downloadName,
 }: {
   result: CraftResult | null;
   busy: boolean;
   progress?: string;
-  boundLabel?: string;
+  boundContext?: BoundContext;
   downloadName?: string;
 }) {
   const { t } = useI18n();
@@ -87,9 +97,33 @@ export function ResultPane({
                 {result.usedModels.generator.providerName} / {result.usedModels.generator.label}
               </p>
             ) : null}
-            {result && boundLabel ? (
+            {result && boundContext ? (
               <p className="mt-1 text-[11px] font-bold text-black/60">
-                {t("boundLabel", { label: boundLabel })}
+                {t("boundLabelPrefix")}
+                <Link
+                  href={`/profiles/${boundContext.profileId}`}
+                  className="kicker-gold underline underline-offset-2"
+                >
+                  {boundContext.profileLabel}
+                </Link>
+                {" · "}
+                {boundContext.jobSourceKind === "url" && boundContext.jobSourceUrl ? (
+                  <a
+                    href={boundContext.jobSourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="kicker-gold underline underline-offset-2"
+                  >
+                    {boundContext.jobLabel}
+                  </a>
+                ) : (
+                  <Link
+                    href={`/jobs/${boundContext.jobId}`}
+                    className="kicker-gold underline underline-offset-2"
+                  >
+                    {boundContext.jobLabel}
+                  </Link>
+                )}
               </p>
             ) : null}
           </div>
