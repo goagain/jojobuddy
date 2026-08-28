@@ -154,6 +154,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
         sourceKind: form.sourceUrl ? "url" : "paste",
         sourceText: form.sourceText || form.parsedText,
         parsedText: form.parsedText || form.sourceText,
+        postedAt: form.postedAt ?? undefined,
       };
       const response = await fetch(jobId ? `/api/jobs/${jobId}` : "/api/jobs", {
         method: jobId ? "PATCH" : "POST",

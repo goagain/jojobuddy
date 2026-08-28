@@ -5,17 +5,22 @@ import { requireUser } from "@/lib/require-user";
 
 export const dynamic = "force-dynamic";
 
+const optionalString = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? undefined);
+
 const patchSchema = z.object({
   title: z.string().min(1).optional(),
-  company: z.string().optional(),
-  location: z.string().optional(),
+  company: optionalString,
+  location: optionalString,
   sourceKind: z.enum(["paste", "url"]).optional(),
-  sourceUrl: z.string().optional(),
+  sourceUrl: optionalString,
   sourceText: z.string().optional(),
   parsedText: z.string().min(20).optional(),
   requirements: z.array(z.string()).optional(),
   keywords: z.array(z.string()).optional(),
-  postedAt: z.string().optional(),
+  postedAt: optionalString,
 });
 
 type Ctx = { params: Promise<{ id: string }> };

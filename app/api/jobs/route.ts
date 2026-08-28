@@ -5,17 +5,22 @@ import { requireUser } from "@/lib/require-user";
 
 export const dynamic = "force-dynamic";
 
+const optionalString = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? undefined);
+
 const createSchema = z.object({
   title: z.string().min(1, "Give this job a name"),
-  company: z.string().optional(),
-  location: z.string().optional(),
+  company: optionalString,
+  location: optionalString,
   sourceKind: z.enum(["paste", "url"]),
-  sourceUrl: z.string().optional(),
+  sourceUrl: optionalString,
   sourceText: z.string().min(1, "Source cannot be empty"),
   parsedText: z.string().min(20, "Job description text is too short"),
   requirements: z.array(z.string()).optional(),
   keywords: z.array(z.string()).optional(),
-  postedAt: z.string().optional(),
+  postedAt: optionalString,
 });
 
 export async function GET() {
