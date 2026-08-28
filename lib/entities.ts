@@ -53,5 +53,6 @@ export type JobSummary = {
   sourceKind: "paste" | "url";
   sourceUrl?: string;
   excerpt: string;
+  createdAt: string;
   updatedAt: string;
 };

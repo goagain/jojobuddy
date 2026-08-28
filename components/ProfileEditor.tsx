@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { useI18n } from "@/components/LocaleProvider";
@@ -12,6 +13,7 @@ import { renderMasterResumeMarkdown, serializeMasterResumeJson } from "@/lib/ren
 import { emptyExperience, emptyResume, uid } from "@/lib/resume-factory";
 import type { MasterResume } from "@/lib/schema";
 import { waitForWorkJob } from "@/lib/wait-work";
+import { workbenchHref } from "@/lib/workbench-link";
 
 function fileStem(value: string) {
   const cleaned = value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
@@ -165,6 +167,11 @@ export function ProfileEditor({ profileId }: { profileId?: string }) {
           <h1 className="text-3xl font-black">{profileId ? t("editProfile") : t("newProfile")}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          {profileId ? (
+            <Link href={workbenchHref({ profileId })} className="btn btn-violet">
+              {t("workbenchGoWithProfile")}
+            </Link>
+          ) : null}
           <button type="button" className="btn" disabled={Boolean(busy)} onClick={downloadJson}>
             {t("downloadJson")}
           </button>

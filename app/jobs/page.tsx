@@ -5,10 +5,12 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { useI18n } from "@/components/LocaleProvider";
 import type { JobSummary } from "@/lib/entities";
+import { formatAddedAt } from "@/lib/format-date";
 import { formatHealthHint } from "@/lib/i18n";
+import { workbenchHref } from "@/lib/workbench-link";
 
 export default function JobsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [hint, setHint] = useState(() => t("reading"));
   const [ok, setOk] = useState(false);
@@ -44,9 +46,14 @@ export default function JobsPage() {
           <h1 className="text-3xl font-black">{t("jobsTitle")}</h1>
           <p className="mt-1 text-sm muted">{t("jobsDesc")}</p>
         </div>
-        <Link href="/jobs/new" className="btn btn-gold">
-          {t("newJob")}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/" className="btn">
+            {t("workbenchGo")}
+          </Link>
+          <Link href="/jobs/new" className="btn btn-gold">
+            {t("newJob")}
+          </Link>
+        </div>
       </div>
       {error ? <p className="mb-3 text-sm font-bold text-rose-700">{error}</p> : null}
       {jobs.length === 0 ? (
@@ -61,12 +68,18 @@ export default function JobsPage() {
                 </p>
                 <h2 className="text-lg font-black">{job.title}</h2>
                 <p className="text-sm muted">{job.company || t("workbenchUnnamedCompany")}</p>
+                <p className="mt-1 text-xs muted">
+                  {t("addedAt", { date: formatAddedAt(job.createdAt, locale) })}
+                </p>
               </div>
               <p className="text-sm leading-6 muted">{job.excerpt}</p>
               {job.sourceUrl ? (
                 <p className="truncate text-[11px] muted">{job.sourceUrl}</p>
               ) : null}
-              <div className="mt-auto flex gap-2">
+              <div className="mt-auto flex flex-wrap gap-2">
+                <Link href={workbenchHref({ jobId: job.id })} className="btn btn-violet">
+                  {t("workbenchGoWithJob")}
+                </Link>
                 <Link href={`/jobs/${job.id}`} className="btn btn-gold">
                   {t("edit")}
                 </Link>

@@ -131,6 +131,9 @@ export async function ensureSeed(userId: string) {
   });
   if (anyPersonal) return;
 
+  const globalModel = await (await models()).findOne({ scope: "global" }, { projection: { _id: 1 } });
+  if (globalModel) return;
+
   const now = new Date();
   let providerId: string | undefined;
   try {

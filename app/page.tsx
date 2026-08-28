@@ -168,6 +168,9 @@ export default function HomePage() {
   );
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const queryProfile = params.get("profileId") ?? "";
+    const queryJob = params.get("jobId") ?? "";
     const savedProfile = window.localStorage.getItem(PROFILE_KEY) ?? "";
     const savedJob = window.localStorage.getItem(JOB_KEY) ?? "";
     const savedGenerator = window.localStorage.getItem(GENERATOR_KEY) ?? "";
@@ -190,8 +193,20 @@ export default function HomePage() {
         const profileIds = new Set(nextProfiles.map((item) => item.id));
         const jobIds = new Set(nextJobs.map((item) => item.id));
         const modelIds = new Set(listed.map((item) => item.id));
-        setProfileId(profileIds.has(savedProfile) ? savedProfile : (nextProfiles[0]?.id ?? ""));
-        setJobId(jobIds.has(savedJob) ? savedJob : (nextJobs[0]?.id ?? ""));
+        const nextProfileId =
+          (queryProfile && profileIds.has(queryProfile) ? queryProfile : null) ??
+          (profileIds.has(savedProfile) ? savedProfile : null) ??
+          nextProfiles[0]?.id ??
+          "";
+        const nextJobId =
+          (queryJob && jobIds.has(queryJob) ? queryJob : null) ??
+          (jobIds.has(savedJob) ? savedJob : null) ??
+          nextJobs[0]?.id ??
+          "";
+        setProfileId(nextProfileId);
+        setJobId(nextJobId);
+        if (nextProfileId) window.localStorage.setItem(PROFILE_KEY, nextProfileId);
+        if (nextJobId) window.localStorage.setItem(JOB_KEY, nextJobId);
         setGeneratorModelId(modelIds.has(savedGenerator) ? savedGenerator : (listed[0]?.id ?? ""));
         setJudgeModelId(modelIds.has(savedJudge) ? savedJudge : (listed[0]?.id ?? ""));
       })

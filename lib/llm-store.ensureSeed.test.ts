@@ -176,7 +176,38 @@ describe("ensureSeed", () => {
     expect(modelDocs).toHaveLength(0);
   });
 
-  it("still seeds personal mock when only global providers exist", async () => {
+  it("skips personal mock when global models exist", async () => {
+    const globalProviderId = new ObjectId();
+    providerDocs.push({
+      _id: globalProviderId,
+      userId: "admin",
+      name: "Shared Claude",
+      kind: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      apiKey: "sk-admin",
+      scope: "global",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    modelDocs.push({
+      _id: new ObjectId(),
+      userId: "admin",
+      providerId: globalProviderId.toHexString(),
+      label: "gpt-global",
+      modelId: "gpt-4o",
+      scope: "global",
+      createdAt: new Date(),
+    });
+
+    const { ensureSeed } = await import("@/lib/llm-store");
+    await ensureSeed("user-a");
+
+    expect(providerDocs.filter((doc) => doc.scope === "global")).toHaveLength(1);
+    expect(providerDocs.filter((doc) => doc.userId === "user-a")).toHaveLength(0);
+    expect(modelDocs.filter((doc) => doc.scope === "personal")).toHaveLength(0);
+  });
+
+  it("still seeds personal mock when only global providers exist without models", async () => {
     providerDocs.push({
       _id: new ObjectId(),
       userId: "admin",
@@ -192,7 +223,6 @@ describe("ensureSeed", () => {
     const { ensureSeed } = await import("@/lib/llm-store");
     await ensureSeed("user-a");
 
-    expect(providerDocs.filter((doc) => doc.scope === "global")).toHaveLength(1);
     expect(providerDocs.filter((doc) => doc.userId === "user-a")).toHaveLength(1);
     expect(providerDocs.find((doc) => doc.userId === "user-a")?.kind).toBe("mock");
   });
@@ -245,7 +275,7 @@ describe("global + personal models", () => {
     const { listModels } = await import("@/lib/llm-store");
     const listed = await listModels("user-b");
     expect(listed.some((item) => item.modelId === "gpt-4o" && item.scope === "global")).toBe(true);
-    expect(listed.some((item) => item.kind === "mock" && item.scope === "personal")).toBe(true);
+    expect(listed.some((item) => item.kind === "mock" && item.scope === "personal")).toBe(false);
   });
 
   it("resolveRuntime allows non-owner to use a global model", async () => {

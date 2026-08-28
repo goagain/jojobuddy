@@ -92,6 +92,7 @@ function toJobSummary(doc: JobDoc): JobSummary {
     sourceKind: job.sourceKind,
     sourceUrl: job.sourceUrl,
     excerpt: excerpt(job.parsedText || job.sourceText),
+    createdAt: job.createdAt,
     updatedAt: job.updatedAt,
   };
 }

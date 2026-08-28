@@ -7,6 +7,7 @@ import { useI18n } from "@/components/LocaleProvider";
 import type { ProfileSummary } from "@/lib/entities";
 import { formatHealthHint } from "@/lib/i18n";
 import { SAMPLE_MASTER_RESUME } from "@/lib/sample-resume";
+import { workbenchHref } from "@/lib/workbench-link";
 
 export default function ProfilesPage() {
   const { t } = useI18n();
@@ -71,7 +72,10 @@ export default function ProfilesPage() {
           <h1 className="text-3xl font-black">{t("profilesTitle")}</h1>
           <p className="mt-1 text-sm muted">{t("profilesDesc")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link href="/" className="btn">
+            {t("workbenchGo")}
+          </Link>
           <button type="button" className="btn" onClick={seedSample}>
             {t("loadSample")}
           </button>
@@ -97,7 +101,10 @@ export default function ProfilesPage() {
               <p className="text-xs muted">
                 {t("sourcesCount", { exp: profile.experienceCount, src: profile.sourceCount })}
               </p>
-              <div className="mt-auto flex gap-2">
+              <div className="mt-auto flex flex-wrap gap-2">
+                <Link href={workbenchHref({ profileId: profile.id })} className="btn btn-violet">
+                  {t("workbenchGoWithProfile")}
+                </Link>
                 <Link href={`/profiles/${profile.id}`} className="btn btn-gold">
                   {t("edit")}
                 </Link>
