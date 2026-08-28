@@ -27,3 +27,22 @@ export function matchesDateRange(iso: string | undefined, from: string, to: stri
   if (to && day > to) return false;
   return true;
 }
+
+export type RecentWindow = "" | "7" | "30" | "90" | "older90" | "unknown";
+
+export function matchesRecentWindow(iso: string | undefined, window: RecentWindow) {
+  if (!window) return true;
+  if (window === "unknown") return !iso;
+  if (!iso) return false;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  if (window === "older90") {
+    cutoff.setDate(cutoff.getDate() - 90);
+    return date < cutoff;
+  }
+  const days = Number(window);
+  cutoff.setDate(cutoff.getDate() - days);
+  return date >= cutoff;
+}

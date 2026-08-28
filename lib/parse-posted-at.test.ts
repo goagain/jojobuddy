@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localDatePart, matchesDateRange } from "@/lib/format-date";
+import { matchesRecentWindow } from "@/lib/format-date";
 import { normalizePostedAt } from "@/lib/parse-posted-at";
 
 describe("normalizePostedAt", () => {
@@ -14,13 +14,19 @@ describe("normalizePostedAt", () => {
   });
 });
 
-describe("matchesDateRange", () => {
-  it("matches local date parts within from/to", () => {
-    const iso = "2024-03-15T23:30:00.000Z";
-    expect(localDatePart(iso)).toBeTruthy();
-    expect(matchesDateRange(iso, "2024-03-15", "2024-03-15")).toBe(true);
-    expect(matchesDateRange(iso, "2024-03-16", "")).toBe(false);
-    expect(matchesDateRange(undefined, "2024-03-01", "")).toBe(false);
-    expect(matchesDateRange(iso, "", "")).toBe(true);
+describe("matchesRecentWindow", () => {
+  it("matches recent days and unknown post dates", () => {
+    const iso = new Date().toISOString();
+    expect(matchesRecentWindow(iso, "")).toBe(true);
+    expect(matchesRecentWindow(iso, "7")).toBe(true);
+    expect(matchesRecentWindow(undefined, "unknown")).toBe(true);
+    expect(matchesRecentWindow(undefined, "7")).toBe(false);
+    const old = new Date();
+    old.setDate(old.getDate() - 40);
+    expect(matchesRecentWindow(old.toISOString(), "30")).toBe(false);
+    const stale = new Date();
+    stale.setDate(stale.getDate() - 100);
+    expect(matchesRecentWindow(stale.toISOString(), "older90")).toBe(true);
+    expect(matchesRecentWindow(iso, "older90")).toBe(false);
   });
 });

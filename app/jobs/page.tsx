@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { useI18n } from "@/components/LocaleProvider";
 import type { JobSummary } from "@/lib/entities";
-import { formatAddedAt, matchesDateRange } from "@/lib/format-date";
+import { formatAddedAt, matchesRecentWindow, type RecentWindow } from "@/lib/format-date";
 import { formatHealthHint } from "@/lib/i18n";
 import { workbenchHref } from "@/lib/workbench-link";
 
@@ -24,10 +24,8 @@ export default function JobsPage() {
   const [cleaning, setCleaning] = useState(false);
   const [titleQuery, setTitleQuery] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
-  const [addedFrom, setAddedFrom] = useState("");
-  const [addedTo, setAddedTo] = useState("");
-  const [postedFrom, setPostedFrom] = useState("");
-  const [postedTo, setPostedTo] = useState("");
+  const [addedWindow, setAddedWindow] = useState<RecentWindow>("");
+  const [postedWindow, setPostedWindow] = useState<RecentWindow>("");
   const [craftByJobId, setCraftByJobId] = useState<Record<string, { profileId: string }>>({});
 
   const companyOptions = useMemo(() => {
@@ -44,11 +42,11 @@ export default function JobsPage() {
     return jobs.filter((job) => {
       if (companyFilter && jobCompanyKey(job) !== companyFilter) return false;
       if (query && !job.title.toLowerCase().includes(query)) return false;
-      if (!matchesDateRange(job.createdAt, addedFrom, addedTo)) return false;
-      if (!matchesDateRange(job.postedAt, postedFrom, postedTo)) return false;
+      if (!matchesRecentWindow(job.createdAt, addedWindow)) return false;
+      if (!matchesRecentWindow(job.postedAt, postedWindow)) return false;
       return true;
     });
-  }, [jobs, titleQuery, companyFilter, addedFrom, addedTo, postedFrom, postedTo]);
+  }, [jobs, titleQuery, companyFilter, addedWindow, postedWindow]);
 
   async function reload() {
     const [health, list, craftSummary] = await Promise.all([
@@ -127,7 +125,7 @@ export default function JobsPage() {
       </div>
       {error ? <p className="mb-3 text-sm font-bold text-rose-700">{error}</p> : null}
       {jobs.length > 0 ? (
-        <div className="panel mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="panel mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <label className="field-label">
             <span>{t("jobsFilterTitle")}</span>
             <input
@@ -152,36 +150,31 @@ export default function JobsPage() {
             </select>
           </label>
           <label className="field-label">
-            <span>{t("jobsFilterAddedFrom")}</span>
-            <input
-              type="date"
-              value={addedFrom}
-              onChange={(event) => setAddedFrom(event.target.value)}
-            />
+            <span>{t("jobsFilterAddedWhen")}</span>
+            <select
+              value={addedWindow}
+              onChange={(event) => setAddedWindow(event.target.value as RecentWindow)}
+            >
+              <option value="">{t("jobsFilterAnyTime")}</option>
+              <option value="7">{t("jobsFilterLast7Days")}</option>
+              <option value="30">{t("jobsFilterLast30Days")}</option>
+              <option value="90">{t("jobsFilterLast90Days")}</option>
+              <option value="older90">{t("jobsFilterOlder90Days")}</option>
+            </select>
           </label>
           <label className="field-label">
-            <span>{t("jobsFilterAddedTo")}</span>
-            <input
-              type="date"
-              value={addedTo}
-              onChange={(event) => setAddedTo(event.target.value)}
-            />
-          </label>
-          <label className="field-label">
-            <span>{t("jobsFilterPostedFrom")}</span>
-            <input
-              type="date"
-              value={postedFrom}
-              onChange={(event) => setPostedFrom(event.target.value)}
-            />
-          </label>
-          <label className="field-label">
-            <span>{t("jobsFilterPostedTo")}</span>
-            <input
-              type="date"
-              value={postedTo}
-              onChange={(event) => setPostedTo(event.target.value)}
-            />
+            <span>{t("jobsFilterPostedWhen")}</span>
+            <select
+              value={postedWindow}
+              onChange={(event) => setPostedWindow(event.target.value as RecentWindow)}
+            >
+              <option value="">{t("jobsFilterAnyTime")}</option>
+              <option value="7">{t("jobsFilterLast7Days")}</option>
+              <option value="30">{t("jobsFilterLast30Days")}</option>
+              <option value="90">{t("jobsFilterLast90Days")}</option>
+              <option value="older90">{t("jobsFilterOlder90Days")}</option>
+              <option value="unknown">{t("jobsFilterPostedUnknown")}</option>
+            </select>
           </label>
         </div>
       ) : null}
