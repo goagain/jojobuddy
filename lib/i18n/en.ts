@@ -265,6 +265,10 @@ export const en = {
     "Worker fetches the page with a simple JS engine. Raw text is kept as source. Without a worker, jobs stall in the queue.",
   sourceRaw: "Source (raw input, saved)",
   jdBody: "JD body for crafting",
+  jobInsights: "JD analysis",
+  jobRequirements: "Requirements",
+  jobKeywords: "Keywords",
+  jobInsightsEmpty: "Requirements and keywords appear here after you parse a URL or paste a JD.",
 
   healthMongoDown: "MongoDB offline: {error}",
   healthOk: "Profiles {profiles} · Jobs {jobs} · Models {models} · {worker}",

@@ -266,6 +266,10 @@ export const zh: Messages = {
     "由 worker 用简易 JS 引擎抓页面。原始文本会作为 source 存下来。没有 worker 时任务会停在队列里。",
   sourceRaw: "Source（原始输入，会入库）",
   jdBody: "用于生成的 JD 正文",
+  jobInsights: "职位解析",
+  jobRequirements: "要求",
+  jobKeywords: "关键词",
+  jobInsightsEmpty: "解析 URL 或粘贴 JD 后，这里会列出要求和关键词。",
 
   healthMongoDown: "MongoDB 未连接：{error}",
   healthOk: "档案 {profiles} · 职位 {jobs} · 模型 {models} · {worker}",

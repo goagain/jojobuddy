@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { useI18n } from "@/components/LocaleProvider";
 import type { Job } from "@/lib/entities";
 import { formatHealthHint } from "@/lib/i18n";
+import { extractJobInsights } from "@/lib/parse-job";
 import { enqueueWork } from "@/lib/wait-work";
 
 const EMPTY: Omit<Job, "id" | "createdAt" | "updatedAt"> = {
@@ -28,6 +29,12 @@ export function JobEditor({ jobId }: { jobId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [hint, setHint] = useState("");
+
+  const insights = useMemo(
+    () => extractJobInsights(form.parsedText || form.sourceText),
+    [form.parsedText, form.sourceText],
+  );
+  const showInsights = (form.parsedText || form.sourceText).trim().length >= 40;
 
   useEffect(() => {
     fetch("/api/health")
@@ -201,6 +208,45 @@ export function JobEditor({ jobId }: { jobId?: string }) {
           />
         </label>
       </section>
+
+      {showInsights ? (
+        <section className="panel panel-gold mb-4 space-y-4">
+          <h2 className="text-xl font-black">{t("jobInsights")}</h2>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <div>
+              <p className="mb-2 text-xs font-black uppercase tracking-widest">{t("jobRequirements")}</p>
+              {insights.requirements.length > 0 ? (
+                <ul className="list-disc space-y-1 pl-4 text-sm leading-6">
+                  {insights.requirements.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm muted">—</p>
+              )}
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-black uppercase tracking-widest">{t("jobKeywords")}</p>
+              {insights.keywords.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {insights.keywords.map((word) => (
+                    <span
+                      key={word}
+                      className="border-2 border-black bg-white px-2 py-0.5 text-[11px] font-bold"
+                    >
+                      {word}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm muted">—</p>
+              )}
+            </div>
+          </div>
+        </section>
+      ) : (
+        <p className="mb-4 text-xs muted">{t("jobInsightsEmpty")}</p>
+      )}
     </div>
   );
 }
