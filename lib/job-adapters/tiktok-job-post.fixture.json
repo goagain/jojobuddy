@@ -1,0 +1,28 @@
+{
+  "code": 0,
+  "data": {
+    "job_post_detail": {
+      "id": "7613184212766607621",
+      "title": "Software Engineer, TikTok AIGC Agentic Workflow",
+      "description": "About the team\nOur team supports platform behind TikTok’s AIGC and effects submission pipelines.",
+      "requirement": "Minimum Qualification(s):\n- Bachelor’s degree in Computer Science.",
+      "city_info": {
+        "en_name": "San Jose",
+        "i18n_name": "San Jose"
+      },
+      "city_list": [
+        {
+          "en_name": "San Jose",
+          "i18n_name": "San Jose"
+        }
+      ],
+      "job_category": {
+        "en_name": "Backend"
+      },
+      "recruit_type": {
+        "en_name": "Regular"
+      }
+    }
+  },
+  "message": "ok"
+}
