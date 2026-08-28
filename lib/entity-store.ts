@@ -2,6 +2,7 @@ import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "./db";
 import type { Job, JobSummary, Profile, ProfileSummary, SourceRecord } from "./entities";
 import { deleteCraftsForJob, deleteCraftsForProfile, deleteCraftsForJobs } from "./craft-store";
+import { normalizeCompanyName } from "./job-company";
 import { normalizePostedAt } from "./parse-posted-at";
 import { sortResumeByTime } from "./resume-factory";
 import type { MasterResume } from "./schema";
@@ -22,6 +23,7 @@ type JobDoc = {
   title: string;
   company: string;
   location?: string;
+  jobNumber?: string;
   sourceKind: "paste" | "url";
   sourceUrl?: string;
   sourceText: string;
@@ -74,6 +76,7 @@ function toJob(doc: JobDoc): Job {
     title: doc.title,
     company: doc.company,
     location: doc.location,
+    jobNumber: doc.jobNumber,
     sourceKind: doc.sourceKind,
     sourceUrl: doc.sourceUrl,
     sourceText: doc.sourceText,
@@ -93,6 +96,7 @@ function toJobSummary(doc: JobDoc): JobSummary {
     title: job.title,
     company: job.company,
     location: job.location,
+    jobNumber: job.jobNumber,
     sourceKind: job.sourceKind,
     sourceUrl: job.sourceUrl,
     excerpt: excerpt(job.parsedText || job.sourceText),
@@ -205,6 +209,7 @@ export async function createJob(
     title: string;
     company?: string;
     location?: string;
+    jobNumber?: string;
     sourceKind: "paste" | "url";
     sourceUrl?: string;
     sourceText: string;
@@ -220,8 +225,9 @@ export async function createJob(
   const doc: JobDoc = {
     userId,
     title: input.title.trim() || "Untitled job",
-    company: input.company?.trim() ?? "",
+    company: normalizeCompanyName(input.company?.trim() ?? ""),
     location: input.location?.trim(),
+    jobNumber: input.jobNumber?.trim() || undefined,
     sourceKind: input.sourceKind,
     sourceUrl: input.sourceUrl,
     sourceText: input.sourceText,
@@ -243,8 +249,9 @@ export async function updateJob(
 ): Promise<Job | null> {
   const $set: Partial<JobDoc> = { updatedAt: new Date() };
   if (patch.title !== undefined) $set.title = patch.title.trim();
-  if (patch.company !== undefined) $set.company = patch.company.trim();
+  if (patch.company !== undefined) $set.company = normalizeCompanyName(patch.company.trim());
   if (patch.location !== undefined) $set.location = patch.location;
+  if (patch.jobNumber !== undefined) $set.jobNumber = patch.jobNumber.trim() || undefined;
   if (patch.sourceKind !== undefined) $set.sourceKind = patch.sourceKind;
   if (patch.sourceUrl !== undefined) $set.sourceUrl = patch.sourceUrl;
   if (patch.sourceText !== undefined) $set.sourceText = patch.sourceText;

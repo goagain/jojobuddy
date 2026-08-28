@@ -21,6 +21,7 @@ export type BoundContext = {
   jobId: string;
   jobTitle?: string;
   jobCompany?: string;
+  jobNumber?: string;
   jobLabel: string;
   jobSourceKind: "paste" | "url";
   jobSourceUrl?: string;
@@ -66,7 +67,7 @@ export function ResultPane({
 
   function resolveExportStem() {
     if (boundContext) {
-      const jobNumber = extractOfficialJobNumber(boundContext.jobSourceUrl);
+      const jobNumber = boundContext.jobNumber ?? extractOfficialJobNumber(boundContext.jobSourceUrl);
       return buildResumeExportStem({
         personName: boundContext.personName ?? boundContext.profileLabel,
         jobTitle: boundContext.jobTitle,

@@ -292,6 +292,7 @@ export const en = {
   jobEditorTitle: "Job",
   jobTitle: "Job title",
   jobCompany: "Company",
+  jobNumber: "Job number",
   sourceUrl: "Source URL",
   pasteJd: "Paste JD",
   parseUrl: "Parse URL",

@@ -21,6 +21,7 @@ const createSchema = z.object({
   requirements: z.array(z.string()).optional(),
   keywords: z.array(z.string()).optional(),
   postedAt: optionalString,
+  jobNumber: optionalString,
 });
 
 export async function GET() {

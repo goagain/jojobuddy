@@ -22,6 +22,7 @@ export type ParseResumePayload = {
 export type AnalyzeJobPayload = {
   text: string;
   modelId?: string;
+  sourceUrl?: string;
 };
 
 export type RefreshJobsPayload = Record<string, never>;

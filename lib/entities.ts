@@ -36,6 +36,7 @@ export type Job = {
   title: string;
   company: string;
   location?: string;
+  jobNumber?: string;
   sourceKind: "paste" | "url";
   sourceUrl?: string;
   sourceText: string;
@@ -52,6 +53,7 @@ export type JobSummary = {
   title: string;
   company: string;
   location?: string;
+  jobNumber?: string;
   sourceKind: "paste" | "url";
   sourceUrl?: string;
   excerpt: string;

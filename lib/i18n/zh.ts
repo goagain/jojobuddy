@@ -293,6 +293,7 @@ export const zh: Messages = {
   jobEditorTitle: "职位",
   jobTitle: "职位名称",
   jobCompany: "公司",
+  jobNumber: "职位编号",
   sourceUrl: "来源链接",
   pasteJd: "粘贴 JD",
   parseUrl: "解析链接",

@@ -1,16 +1,33 @@
 import { z } from "zod";
+import { normalizeCompanyName } from "./job-company";
 import { normalizeJobLocations } from "./job-location";
 import { buildAnalyzeJobMessages } from "./prompts";
 import { chat, extractJsonObject } from "./llm";
 import type { LlmRuntime } from "./llm-types";
 
 export const jobInsightsSchema = z.object({
+  title: z.string().default(""),
+  company: z.string().default(""),
+  jobNumber: z.string().default(""),
   requirements: z.array(z.string()).default([]),
   keywords: z.array(z.string()).default([]),
   locations: z.array(z.string()).default([]),
 });
 
 export type JobInsights = z.infer<typeof jobInsightsSchema>;
+
+export type AnalyzeJobContext = {
+  sourceUrl?: string;
+};
+
+const EMPTY_INSIGHTS: JobInsights = {
+  title: "",
+  company: "",
+  jobNumber: "",
+  requirements: [],
+  keywords: [],
+  locations: [],
+};
 
 const REQUIREMENT_SECTIONS = [
   /^minimum qualifications?/i,
@@ -79,6 +96,20 @@ const KEYWORD_TERMS = [
   "control plane",
   "sre",
   "devops",
+];
+
+const COMPANY_LINE_PATTERNS = [
+  /^Company\s*[:：]\s*(.+)$/im,
+  /^Employer\s*[:：]\s*(.+)$/im,
+  /^公司\s*[:：]\s*(.+)$/im,
+];
+
+const JOB_NUMBER_LINE_PATTERNS = [
+  /^Role Number\s*[:：]\s*(.+)$/im,
+  /^Requisition\s*(?:ID|Number)?\s*[:：]\s*(.+)$/im,
+  /^Job\s*(?:ID|Number)\s*[:：]\s*(.+)$/im,
+  /^Posting\s*(?:ID|Number)\s*[:：]\s*(.+)$/im,
+  /^职位编号\s*[:：]\s*(.+)$/im,
 ];
 
 function normalizeLine(line: string) {
@@ -158,9 +189,37 @@ function asStringList(value: unknown): string[] {
   return value.map((item) => String(item).trim()).filter(Boolean);
 }
 
+function asString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function firstMatch(text: string, patterns: RegExp[]): string {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]?.trim()) return match[1].trim();
+  }
+  return "";
+}
+
+function extractTitleHeuristic(text: string): string {
+  const first = text.split("\n").map(normalizeLine).find(Boolean);
+  return first?.slice(0, 160) ?? "";
+}
+
+function extractCompanyHeuristic(text: string): string {
+  return normalizeCompanyName(firstMatch(text, COMPANY_LINE_PATTERNS));
+}
+
+function extractJobNumberHeuristic(text: string): string {
+  return firstMatch(text, JOB_NUMBER_LINE_PATTERNS).slice(0, 64);
+}
+
 export function normalizeJobInsights(raw: unknown): JobInsights {
   const data = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   return jobInsightsSchema.parse({
+    title: asString(data.title).slice(0, 160),
+    company: normalizeCompanyName(asString(data.company)),
+    jobNumber: asString(data.jobNumber).slice(0, 64),
     requirements: dedupe(asStringList(data.requirements)).slice(0, 24),
     keywords: dedupe(asStringList(data.keywords)).slice(0, 32),
     locations: normalizeJobLocations(dedupe(asStringList(data.locations))).slice(0, 12),
@@ -193,7 +252,7 @@ function extractLocationsHeuristic(text: string): string[] {
 export function extractJobInsightsHeuristic(text: string): JobInsights {
   const trimmed = text.trim();
   if (trimmed.length < 40) {
-    return { requirements: [], keywords: [], locations: [] };
+    return { ...EMPTY_INSIGHTS };
   }
 
   const requirements: string[] = [];
@@ -221,6 +280,9 @@ export function extractJobInsightsHeuristic(text: string): JobInsights {
   }
 
   return {
+    title: extractTitleHeuristic(trimmed),
+    company: extractCompanyHeuristic(trimmed),
+    jobNumber: extractJobNumberHeuristic(trimmed),
     requirements: dedupe(requirements).slice(0, 24),
     keywords: dedupe(keywords).slice(0, 32),
     locations: extractLocationsHeuristic(trimmed),
@@ -230,10 +292,14 @@ export function extractJobInsightsHeuristic(text: string): JobInsights {
 /** @deprecated Use analyzeJobDescription; kept for tests. */
 export const extractJobInsights = extractJobInsightsHeuristic;
 
-export async function analyzeJobDescription(text: string, runtime: LlmRuntime): Promise<JobInsights> {
+export async function analyzeJobDescription(
+  text: string,
+  runtime: LlmRuntime,
+  context?: AnalyzeJobContext,
+): Promise<JobInsights> {
   const trimmed = text.trim();
   if (trimmed.length < 40) {
-    return { requirements: [], keywords: [], locations: [] };
+    return { ...EMPTY_INSIGHTS };
   }
   if (runtime.kind === "mock") {
     return extractJobInsightsHeuristic(trimmed);
@@ -242,7 +308,7 @@ export async function analyzeJobDescription(text: string, runtime: LlmRuntime): 
   const content = await chat({
     runtime,
     json: true,
-    messages: buildAnalyzeJobMessages(trimmed.slice(0, 24000)),
+    messages: buildAnalyzeJobMessages(trimmed.slice(0, 24000), context),
   });
 
   return normalizeJobInsights(extractJsonObject(content));

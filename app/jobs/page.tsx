@@ -13,6 +13,7 @@ import {
   parseJobCities,
   UNNAMED_LOCATION,
 } from "@/lib/job-location";
+import { normalizeCompanyName } from "@/lib/job-company";
 import { workbenchHref } from "@/lib/workbench-link";
 import { enqueueWork } from "@/lib/wait-work";
 import type { RefreshJobsResult } from "@/lib/refresh-jobs";
@@ -20,7 +21,7 @@ import type { RefreshJobsResult } from "@/lib/refresh-jobs";
 const UNNAMED_COMPANY = "__unnamed__";
 
 function jobCompanyKey(job: JobSummary) {
-  return job.company.trim() || UNNAMED_COMPANY;
+  return normalizeCompanyName(job.company.trim()) || UNNAMED_COMPANY;
 }
 
 export default function JobsPage() {

@@ -2,6 +2,11 @@ import { deleteJob, listUrlJobs, updateJob } from "./entity-store";
 import type { Job } from "./entities";
 import { fetchJobPage } from "./extract-url";
 import { resolveJobLocation } from "./job-location";
+import {
+  resolveJobCompany,
+  resolveJobNumber,
+  resolveJobTitle,
+} from "./job-fields";
 import type { LlmRuntime } from "./llm-types";
 import { analyzeJobDescription } from "./parse-job";
 
@@ -75,11 +80,12 @@ async function refreshOneJob(
 
   try {
     const page = await fetchJobPage(url);
-    const insights = await analyzeJobDescription(page.text, runtime);
+    const insights = await analyzeJobDescription(page.text, runtime, { sourceUrl: url });
     await updateJob(userId, job.id, {
-      title: page.title || job.title,
-      company: page.company || job.company,
+      title: resolveJobTitle(insights, page.title || job.title),
+      company: resolveJobCompany(insights, page.company || job.company),
       location: resolveJobLocation(insights, page.location),
+      jobNumber: resolveJobNumber(insights, page.url) ?? job.jobNumber,
       sourceUrl: page.url,
       sourceText: page.text,
       parsedText: page.text,

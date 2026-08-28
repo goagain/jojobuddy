@@ -688,6 +688,7 @@ function WorkbenchPage() {
                   jobId: selectedJob.id,
                   jobTitle: selectedJob.title,
                   jobCompany: selectedJob.company,
+                  jobNumber: selectedJob.jobNumber,
                   jobLabel: `${selectedJob.company ? `${selectedJob.company} / ` : ""}${selectedJob.title}`,
                   jobSourceKind: selectedJob.sourceKind,
                   jobSourceUrl: selectedJob.sourceUrl,

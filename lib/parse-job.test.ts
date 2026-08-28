@@ -64,6 +64,9 @@ describe("extractJobInsightsHeuristic", () => {
 describe("normalizeJobInsights", () => {
   it("normalizes AI location output to city names", () => {
     const insights = normalizeJobInsights({
+      title: "",
+      company: "",
+      jobNumber: "",
       requirements: ["Go experience"],
       keywords: ["kubernetes"],
       locations: [
@@ -81,7 +84,7 @@ describe("resolveJobLocation", () => {
   it("prefers AI cities over adapter fallback", () => {
     expect(
       resolveJobLocation(
-        { locations: ["Denver", "Austin"] },
+        { title: "", company: "", jobNumber: "", locations: ["Denver", "Austin"], requirements: [], keywords: [] },
         "Seattle, Washington, United States",
       ),
     ).toBe("Denver / Austin");
@@ -90,9 +93,23 @@ describe("resolveJobLocation", () => {
   it("falls back to adapter location when AI returns none", () => {
     expect(
       resolveJobLocation(
-        { locations: [] },
+        { title: "", company: "", jobNumber: "", locations: [], requirements: [], keywords: [] },
         "Seattle, Washington, United States / Austin, Texas",
       ),
     ).toBe("Seattle / Austin");
+  });
+});
+
+describe("normalizeJobInsights company", () => {
+  it("normalizes legal suffixes from AI output", () => {
+    const insights = normalizeJobInsights({
+      title: "Engineer",
+      company: "Snap Inc.",
+      jobNumber: "",
+      requirements: [],
+      keywords: [],
+      locations: [],
+    });
+    expect(insights.company).toBe("Snap");
   });
 });

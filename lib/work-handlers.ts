@@ -3,7 +3,12 @@ import { getJob, getProfile } from "./entity-store";
 import { fetchJobPage } from "./extract-url";
 import { pickParseRuntime, resolveRuntime } from "./llm-store";
 import { analyzeJobDescription } from "./parse-job";
-import { resolveJobLocation } from "./job-location";
+import {
+  resolveJobCompany,
+  resolveJobLocation,
+  resolveJobNumber,
+  resolveJobTitle,
+} from "./job-fields";
 import { structureResume } from "./parse-resume";
 import { uid } from "./resume-factory";
 import type { AnalyzeJobPayload, CraftPayload, ParseResumePayload, ParseUrlPayload, RefreshJobsPayload } from "./work-types";
@@ -23,12 +28,13 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
     const page = await fetchJobPage(payload.url);
     await updateWorkProgress(id, { step: "Analyzing requirements and keywords", percent: 55 });
     const runtime = await pickParseRuntime(job.userId);
-    const insights = await analyzeJobDescription(page.text, runtime);
+    const insights = await analyzeJobDescription(page.text, runtime, { sourceUrl: page.url });
     await updateWorkProgress(id, { step: "Cleaning job text", percent: 90 });
     return {
-      title: page.title,
-      company: page.company,
+      title: resolveJobTitle(insights, page.title),
+      company: resolveJobCompany(insights, page.company),
       location: resolveJobLocation(insights, page.location),
+      jobNumber: resolveJobNumber(insights, page.url),
       sourceKind: "url",
       sourceUrl: page.url,
       sourceText: page.text,
@@ -43,7 +49,9 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
     const payload = job.payload as AnalyzeJobPayload;
     await updateWorkProgress(id, { step: "Analyzing requirements and keywords", percent: 30 });
     const runtime = await pickParseRuntime(job.userId, payload.modelId || undefined);
-    const insights = await analyzeJobDescription(payload.text, runtime);
+    const insights = await analyzeJobDescription(payload.text, runtime, {
+      sourceUrl: payload.sourceUrl,
+    });
     return insights;
   }
 

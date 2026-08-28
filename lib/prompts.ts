@@ -245,10 +245,28 @@ Extract ONLY what is explicitly stated or clearly implied in the JD. Do not inve
 
 Output JSON only:
 {
+  "title": string,
+  "company": string,
+  "jobNumber": string,
   "requirements": string[],
   "keywords": string[],
   "locations": string[]
 }
+
+title:
+- The job posting title as shown on the careers site (role name only).
+- Empty string if not clearly stated.
+
+company:
+- Employer brand name in canonical short form — the name a candidate would say aloud.
+- Strip legal suffixes: Inc, LLC, Corp, Ltd, Co, PLC, GmbH, 有限公司, etc.
+- Examples: "Snap" not "Snap Inc."; "Apple" not "Apple Inc."; "Meta" not "Meta Platforms, Inc."
+- If multiple names appear, pick the primary hiring brand. Empty string if unknown.
+
+jobNumber:
+- Official requisition / role / posting ID when explicitly shown (e.g. "Role Number", "Requisition ID", "Job ID").
+- If a source URL is provided, you may infer the id from its path when that is standard for the site.
+- Empty string if unknown. Examples: Apple "200678539-3337", LinkedIn numeric posting id.
 
 requirements:
 - 6–16 concise bullets covering must-have qualifications, preferred qualifications, and core responsibilities.
@@ -269,22 +287,30 @@ locations:
 - If no location is stated, return [].`;
 
 const ANALYZE_JOB_ACK =
-  "Understood. I will return only requirements, keywords, and locations JSON extracted faithfully from the JD.";
+  "Understood. I will return title, company, jobNumber, requirements, keywords, and locations JSON extracted faithfully from the JD.";
 
-export function buildAnalyzeJobMessages(jobDescription: string): ChatMessage[] {
+export function buildAnalyzeJobMessages(
+  jobDescription: string,
+  context?: { sourceUrl?: string },
+): ChatMessage[] {
+  const urlHint = context?.sourceUrl?.trim()
+    ? `\nSource URL (for jobNumber hints): ${context.sourceUrl.trim()}\n`
+    : "";
+
   return [
     { role: "system", content: ANALYZE_JOB_SYSTEM },
     {
       role: "user",
-      content: "Confirm you will extract requirements, keywords, and locations from the JD only and return JSON.",
+      content:
+        "Confirm you will extract title, company, jobNumber, requirements, keywords, and locations from the JD only and return JSON.",
     },
     { role: "assistant", content: ANALYZE_JOB_ACK },
     {
       role: "user",
-      content: `Job description:
+      content: `Job description:${urlHint}
 ${jobDescription}
 
-Extract requirements, keywords, and locations now. JSON only.`,
+Extract structured fields now. JSON only.`,
     },
   ];
 }

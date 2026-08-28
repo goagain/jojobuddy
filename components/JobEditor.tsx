@@ -15,6 +15,7 @@ const EMPTY: Omit<Job, "id" | "createdAt" | "updatedAt"> = {
   title: "",
   company: "",
   location: "",
+  jobNumber: "",
   sourceKind: "paste",
   sourceUrl: "",
   sourceText: "",
@@ -62,6 +63,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
           title: job.title,
           company: job.company,
           location: job.location ?? "",
+          jobNumber: job.jobNumber ?? "",
           sourceKind: job.sourceKind,
           sourceUrl: job.sourceUrl ?? "",
           sourceText: job.sourceText,
@@ -82,15 +84,25 @@ export function JobEditor({ jobId }: { jobId?: string }) {
     setProgress(t("jobAnalyzingAi"));
     setError(null);
     try {
-      const insights = await enqueueWork<{ requirements: string[]; keywords: string[]; locations: string[] }>({
+      const insights = await enqueueWork<{
+        title: string;
+        company: string;
+        jobNumber: string;
+        requirements: string[];
+        keywords: string[];
+        locations: string[];
+      }>({
         type: "analyze_job",
-        payload: { text },
+        payload: { text, sourceUrl: form.sourceUrl || undefined },
         onProgress: (step, status) => {
           setProgress(step?.step ?? status ?? t("queueing"));
         },
       });
       setForm((prev) => ({
         ...prev,
+        title: insights.title || prev.title,
+        company: insights.company || prev.company,
+        jobNumber: insights.jobNumber || prev.jobNumber,
         requirements: insights.requirements,
         keywords: insights.keywords,
         location: formatJobLocations(insights.locations) || prev.location,
@@ -112,6 +124,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
         title: string;
         company: string;
         location: string;
+        jobNumber?: string;
         sourceUrl: string;
         sourceText: string;
         parsedText: string;
@@ -129,6 +142,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
         title: page.title || form.title,
         company: page.company || form.company,
         location: page.location || form.location,
+        jobNumber: page.jobNumber || form.jobNumber,
         sourceKind: "url",
         sourceUrl: page.sourceUrl,
         sourceText: page.sourceText,
@@ -155,6 +169,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
         sourceText: form.sourceText || form.parsedText,
         parsedText: form.parsedText || form.sourceText,
         postedAt: form.postedAt ?? undefined,
+        jobNumber: form.jobNumber?.trim() || undefined,
       };
       const response = await fetch(jobId ? `/api/jobs/${jobId}` : "/api/jobs", {
         method: jobId ? "PATCH" : "POST",
@@ -208,7 +223,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
         <p className="text-xs muted">{t("parseUrlHint")}</p>
       </section>
 
-      <section className="panel mb-4 grid gap-3 md:grid-cols-3">
+      <section className="panel mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <label className="field-label">
           {t("jobTitle")}
           <input
@@ -221,6 +236,14 @@ export function JobEditor({ jobId }: { jobId?: string }) {
           <input
             value={form.company}
             onChange={(event) => setForm((prev) => ({ ...prev, company: event.target.value }))}
+          />
+        </label>
+        <label className="field-label">
+          {t("jobNumber")}
+          <input
+            value={form.jobNumber ?? ""}
+            onChange={(event) => setForm((prev) => ({ ...prev, jobNumber: event.target.value }))}
+            placeholder="200678539-3337"
           />
         </label>
         <label className="field-label">
