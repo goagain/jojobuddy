@@ -23,7 +23,7 @@ services:
       - jojobuddy-internal
 
   web:
-    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:v0.0.26}
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
@@ -43,7 +43,7 @@ services:
       caddy.reverse_proxy: "{{upstreams ${CADDY_UPSTREAM_PORT:-3000}}}"
 
   worker:
-    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:latest}
+    image: ${JOJOBUDDY_IMAGE:-ghcr.io/goagain/jojobuddy:v0.0.26}
     restart: unless-stopped
     stop_grace_period: 5m
     environment:
