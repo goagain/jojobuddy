@@ -2,6 +2,8 @@ import { lookup, Resolver } from "node:dns/promises";
 import https from "node:https";
 import { isIP } from "node:net";
 import * as cheerio from "cheerio";
+import { fetchViaJobAdapters } from "./job-adapters";
+import { cleanText, htmlToText } from "./job-adapters/text";
 import { runPageInJsEngine } from "./js-engine";
 
 const BLOCKED_HOSTS = new Set(["localhost", "metadata.google.internal"]);
@@ -48,21 +50,6 @@ export async function assertPublicHttpUrl(raw: string): Promise<URL> {
     }
   }
   return url;
-}
-
-function cleanText(value: string) {
-  return value
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\u00a0/g, " ")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function htmlToText(html: string) {
-  const $ = cheerio.load(`<div>${html}</div>`);
-  $("script, style").remove();
-  return cleanText($.root().text());
 }
 
 export function locationFromJobText(text: string): string {
@@ -186,67 +173,7 @@ async function fetchText(url: URL, headers: Record<string, string> = BROWSER_HEA
   }
 }
 
-async function fetchAppleJob(url: URL): Promise<{
-  title: string;
-  company: string;
-  location: string;
-  text: string;
-} | null> {
-  const match = url.pathname.match(/\/details\/(\d+(?:-\d+)?)/i);
-  if (!url.hostname.endsWith("apple.com") || !match) return null;
-
-  const apiUrl = new URL(`https://jobs.apple.com/api/v1/jobDetails/${match[1]}`);
-  let status: number;
-  let body: string;
-  try {
-    ({ status, body } = await fetchText(apiUrl));
-  } catch {
-    return null;
-  }
-  if (status < 200 || status >= 300) return null;
-
-  let payload: { res?: Record<string, unknown> };
-  try {
-    payload = JSON.parse(body) as { res?: Record<string, unknown> };
-  } catch {
-    return null;
-  }
-  const job = payload.res;
-  if (!job) return null;
-
-  const title = String(job.postingTitle ?? "");
-  const locations = Array.isArray(job.locations)
-    ? job.locations
-        .map((item) => {
-          const loc = item as { name?: string; city?: string; stateProvince?: string; countryName?: string };
-          return [loc.city || loc.name, loc.stateProvince, loc.countryName].filter(Boolean).join(", ");
-        })
-        .filter(Boolean)
-        .join(" / ")
-    : "";
-  const teams = Array.isArray(job.teamNames) ? job.teamNames.map(String).join(", ") : "";
-  const level = [job.lowJobTitle, job.highJobTitle].filter(Boolean).map(String).join(" – ");
-
-  const sections = [
-    title,
-    ["Company: Apple", locations && `Location: ${locations}`, teams && `Team: ${teams}`, level && `Level: ${level}`]
-      .filter(Boolean)
-      .join("\n"),
-    job.jobSummary && `Summary\n${htmlToText(String(job.jobSummary))}`,
-    job.description && `Description\n${htmlToText(String(job.description))}`,
-    job.minimumQualifications &&
-      `Minimum Qualifications\n${htmlToText(String(job.minimumQualifications))}`,
-    job.preferredQualifications &&
-      `Preferred Qualifications\n${htmlToText(String(job.preferredQualifications))}`,
-  ].filter(Boolean);
-
-  const text = sections.join("\n\n").trim();
-  if (text.length < 40) return null;
-  return { title: title || "Apple job", company: "Apple", location: locations, text };
-}
-
-function extractJsonLdJob($: cheerio.CheerioAPI): {
-  title: string;
+function extractJsonLdJob($: cheerio.CheerioAPI): {  title: string;
   company: string;
   location: string;
   text: string;
@@ -305,9 +232,15 @@ export async function fetchJobPage(rawUrl: string): Promise<{
 }> {
   const url = await assertPublicHttpUrl(rawUrl);
 
-  const apple = await fetchAppleJob(url);
-  if (apple) {
-    return { url: url.toString(), ...apple };
+  const adapted = await fetchViaJobAdapters(url, fetchText);
+  if (adapted) {
+    return {
+      url: adapted.canonicalUrl ?? url.toString(),
+      title: adapted.title,
+      company: adapted.company,
+      location: adapted.location,
+      text: adapted.text,
+    };
   }
 
   const { status, body: html } = await fetchText(url);

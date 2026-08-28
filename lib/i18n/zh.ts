@@ -263,7 +263,7 @@ export const zh: Messages = {
   fetching: "抓取中…",
   jobNotFound: "职位不存在",
   parseUrlHint:
-    "由 worker 用简易 JS 引擎抓页面。原始文本会作为 source 存下来。没有 worker 时任务会停在队列里。",
+    "由 worker 抓取页面。LinkedIn 搜索链接会用 guest API 解析（支持 currentJobId= 或 /jobs/view/…）。原始文本会作为 source 存下来。没有 worker 时任务会停在队列里。",
   sourceRaw: "Source（原始输入，会入库）",
   jdBody: "用于生成的 JD 正文",
   jobInsights: "职位解析",

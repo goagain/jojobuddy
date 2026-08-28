@@ -262,7 +262,7 @@ export const en = {
   fetching: "Fetching…",
   jobNotFound: "Job not found",
   parseUrlHint:
-    "Worker fetches the page with a simple JS engine. Raw text is kept as source. Without a worker, jobs stall in the queue.",
+    "Worker fetches the page with a simple JS engine. LinkedIn search URLs use the guest job API (paste /jobs/view/… or a link with currentJobId=). Raw text is kept as source. Without a worker, jobs stall in the queue.",
   sourceRaw: "Source (raw input, saved)",
   jdBody: "JD body for crafting",
   jobInsights: "JD analysis",
