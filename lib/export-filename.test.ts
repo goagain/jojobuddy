@@ -2,18 +2,18 @@ import { describe, expect, it } from "vitest";
 import { buildResumeExportStem } from "@/lib/export-filename";
 
 describe("buildResumeExportStem", () => {
-  it("joins name, title, job id, and company", () => {
+  it("joins name, title, job number, and company", () => {
     expect(
       buildResumeExportStem({
         personName: "Jane Doe",
         jobTitle: "Software Engineer",
-        jobId: "674a1b2c3d4e5f6789012345",
-        company: "Acme Corp",
+        jobNumber: "200678539-3337",
+        company: "Apple",
       }),
-    ).toBe("Jane Doe - Software Engineer - 674a1b2c3d4e5f6789012345 - Acme Corp");
+    ).toBe("Jane Doe - Software Engineer - 200678539-3337 - Apple");
   });
 
-  it("omits job id when missing", () => {
+  it("omits job number when missing", () => {
     expect(
       buildResumeExportStem({
         personName: "Jane Doe",
@@ -28,9 +28,9 @@ describe("buildResumeExportStem", () => {
       buildResumeExportStem({
         personName: "Jane/Doe",
         jobTitle: "Engineer: Platform",
-        jobId: "abc123",
+        jobNumber: "200678539-3337",
         company: "Acme|Corp",
       }),
-    ).toBe("Jane Doe - Engineer Platform - abc123 - Acme Corp");
+    ).toBe("Jane Doe - Engineer Platform - 200678539-3337 - Acme Corp");
   });
 });

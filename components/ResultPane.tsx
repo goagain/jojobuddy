@@ -7,6 +7,7 @@ import type { CraftResult } from "@/lib/types";
 import { useI18n } from "@/components/LocaleProvider";
 import { ScoreRadar } from "./ScoreRadar";
 import { buildResumeExportStem } from "@/lib/export-filename";
+import { extractOfficialJobNumber } from "@/lib/job-number";
 
 function fileStem(value: string) {
   const cleaned = value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
@@ -64,11 +65,12 @@ export function ResultPane({
   ] as const;
 
   function resolveExportStem() {
-    if (boundContext?.jobId) {
+    if (boundContext) {
+      const jobNumber = extractOfficialJobNumber(boundContext.jobSourceUrl);
       return buildResumeExportStem({
         personName: boundContext.personName ?? boundContext.profileLabel,
         jobTitle: boundContext.jobTitle,
-        jobId: boundContext.jobId,
+        jobNumber: jobNumber ?? undefined,
         company: boundContext.jobCompany,
       });
     }
