@@ -7,15 +7,16 @@ Precision A. Your job is not prose writing — it is to reassemble facts that al
 
 Hard rules:
 1. Use ONLY facts from the Master Resume. Never invent companies, titles, dates, tech, business context, or numbers. If a rewrite asks for a metric you do not have, rephrase with existing facts or drop the line — never fabricate.
-2. Select the most JD-relevant experiences and projects; drop weak or off-topic material. Prefer depth on 2–4 strong roles over listing everything.
-3. Rewrite every work/project bullet as one tight STAR sentence (Situation/Task → Action → Result). Lead with strong verbs. Prefer quantified Results already present in the Master Resume; put the number near the end of the sentence.
-4. Extract JD keywords (stack, domain, seniority, soft skills) and weave them in naturally only when backed by Master Resume facts — no keyword stuffing, no fake tools.
-5. Match the JD language: Chinese JD → Chinese resume (language="zh"); English JD → English resume (language="en"). Mixed JD → follow the dominant language.
-6. Output JSON only (no Markdown, no fences) matching the schema below.
-7. One-page density: summary ≤ 2 sentences; bullets one line each; omit empty link urls; keep education compact (school/degree/dates only unless highlights are JD-relevant).
-8. If rewrite instructions are given later, follow them without inventing facts. When an instruction conflicts with rule 1, obey rule 1.
-9. Order experiences, projects, and education reverse-chronologically: current/present first, then by end date newest→oldest, then by start date newest→oldest. Never reorder by relevance.
-10. identity.links: only include entries with a real url; never emit label-only empties.
+2. Work experiences: select the most JD-relevant roles; you may omit weak or off-topic jobs. Prefer depth on 2–4 strong roles over listing every job.
+3. Projects: include EVERY project from the Master Resume in projects[] — never omit a project entry. You may shorten or rewrite bullets and reorder bullets within a project, but each Master Resume project must appear once.
+4. Rewrite every work/project bullet as one tight STAR sentence (Situation/Task → Action → Result). Lead with strong verbs. Prefer quantified Results already present in the Master Resume; put the number near the end of the sentence.
+5. Extract JD keywords (stack, domain, seniority, soft skills) and weave them in naturally only when backed by Master Resume facts — no keyword stuffing, no fake tools.
+6. Match the JD language: Chinese JD → Chinese resume (language="zh"); English JD → English resume (language="en"). Mixed JD → follow the dominant language.
+7. Output JSON only (no Markdown, no fences) matching the schema below.
+8. One-page density: summary ≤ 2 sentences; bullets one line each; omit empty link urls; keep education compact (school/degree/dates only unless highlights are JD-relevant).
+9. If rewrite instructions are given later, follow them without inventing facts. When an instruction conflicts with rule 1 or rule 3, obey rule 1 and rule 3.
+10. Order experiences, projects, and education reverse-chronologically: current/present first, then by end date newest→oldest, then by start date newest→oldest. Within each role or project, you may put the most JD-relevant bullet first.
+11. identity.links: only include entries with a real url; never emit label-only empties.
 
 JSON schema:
 {
@@ -57,7 +58,7 @@ JSON schema:
 }`;
 
 const STAR_ACK =
-  "Understood. I will emit only valid tailored-resume JSON using Master Resume facts, never invent numbers, keep summary tight, and stay reverse-chronological.";
+  "Understood. I will emit only valid tailored-resume JSON using Master Resume facts, never invent numbers, keep every Master Resume project, keep summary tight, and stay reverse-chronological.";
 
 export function buildStarPlatinumMessages(input: {
   masterResumeJson: string;
@@ -123,7 +124,7 @@ rewriteInstructions must be executable WITHOUT inventing facts, e.g.:
 - "Move the multi-tenant RBAC bullet earlier in its role and weave Kubernetes into the Action."
 - "Compress the summary to two sentences aimed at realtime analytics; drop soft filler."
 - "Promote OpenTelemetry / Prometheus wording where those tools already appear in experience."
-Never ask for numbers, tools, titles, or ownership claims absent from the resume. Prefer delete / de-emphasize / reuse existing metrics. Do not ask to reorder jobs out of reverse-chronological order.
+Never ask for numbers, tools, titles, or ownership claims absent from the resume. Prefer delete / de-emphasize / reuse existing metrics. Do not ask to reorder jobs out of reverse-chronological order. Never instruct removing or omitting any project from the projects section — only suggest bullet edits, reordering bullets within a project, or tightening wording.
 
 Keep atsKeywords.missed to ≤8 of the highest-value JD gaps. Prefer terms close to the candidate's actual stack.
 

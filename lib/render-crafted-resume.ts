@@ -1,6 +1,7 @@
-import { resumeDateValue } from "./resume-factory";
-import type { CraftedResumeDoc } from "./crafted-schema";
+import type { CraftedProject, CraftedResumeDoc } from "./crafted-schema";
 import { craftedResumeSchema } from "./crafted-schema";
+import { resumeDateValue } from "./resume-factory";
+import type { MasterResume } from "./schema";
 
 const LABELS = {
   en: {
@@ -183,6 +184,42 @@ export function renderCraftedResumeMarkdown(input: CraftedResumeDoc): string {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-export function parseAndNormalizeCrafted(raw: unknown): CraftedResumeDoc {
-  return sortCraftedResumeDoc(craftedResumeSchema.parse(raw));
+function normalizeProjectKey(name: string) {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function masterProjectToCrafted(project: MasterResume["projects"][number]): CraftedProject {
+  const bullets = project.bullets
+    .map((bullet) => bullet.raw?.trim() || [bullet.action, bullet.result].filter(Boolean).join(" ").trim())
+    .filter(Boolean);
+  if (bullets.length === 0 && project.summary.trim()) {
+    bullets.push(project.summary.trim());
+  }
+  return {
+    name: project.name,
+    role: project.role ?? "",
+    startDate: project.startDate ?? "",
+    endDate: project.endDate ?? "",
+    bullets,
+  };
+}
+
+/** Re-insert any Master Resume projects the model dropped. */
+export function ensureMasterProjects(crafted: CraftedResumeDoc, masterResume: MasterResume): CraftedResumeDoc {
+  const seen = new Set(crafted.projects.map((project) => normalizeProjectKey(project.name)).filter(Boolean));
+  const projects = [...crafted.projects];
+
+  for (const project of masterResume.projects) {
+    const key = normalizeProjectKey(project.name);
+    if (!key || seen.has(key)) continue;
+    projects.push(masterProjectToCrafted(project));
+    seen.add(key);
+  }
+
+  return sortCraftedResumeDoc({ ...crafted, projects });
+}
+
+export function parseAndNormalizeCrafted(raw: unknown, masterResume?: MasterResume): CraftedResumeDoc {
+  const crafted = sortCraftedResumeDoc(craftedResumeSchema.parse(raw));
+  return masterResume ? ensureMasterProjects(crafted, masterResume) : crafted;
 }

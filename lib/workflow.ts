@@ -65,7 +65,7 @@ export async function generateResume(input: {
     }),
   });
 
-  const crafted = parseAndNormalizeCrafted(extractJsonObject(content));
+  const crafted = parseAndNormalizeCrafted(extractJsonObject(content), input.masterResume);
   return {
     crafted,
     resumeMarkdown: renderCraftedResumeMarkdown(crafted),

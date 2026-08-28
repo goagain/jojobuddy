@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { linkifyEmails, linkifyUrls, renderCraftedResumeMarkdown } from "@/lib/render-crafted-resume";
+import {
+  ensureMasterProjects,
+  linkifyEmails,
+  linkifyUrls,
+  renderCraftedResumeMarkdown,
+} from "@/lib/render-crafted-resume";
 import type { CraftedResumeDoc } from "@/lib/crafted-schema";
 
 const base: CraftedResumeDoc = {
@@ -70,6 +75,71 @@ describe("linkifyEmails", () => {
     expect(linkifyEmails("Reach me at foo@bar.com today.")).toBe(
       "Reach me at [foo@bar.com](mailto:foo@bar.com) today.",
     );
+  });
+});
+
+describe("ensureMasterProjects", () => {
+  it("restores projects dropped by the model", () => {
+    const restored = ensureMasterProjects(base, {
+      identity: { name: "Rui Tang", email: "", links: [] },
+      skills: [],
+      experiences: [],
+      projects: [
+        {
+          id: "p1",
+          name: "Side App",
+          role: "owner",
+          summary: "",
+          techStack: [],
+          bullets: [{ id: "b1", raw: "Built a demo." }],
+        },
+        {
+          id: "p2",
+          name: "Jojobuddy",
+          role: "owner",
+          summary: "",
+          techStack: [],
+          bullets: [{ id: "b2", raw: "Shipped resume tooling." }],
+        },
+      ],
+      education: [],
+    });
+
+    expect(restored.projects.map((project) => project.name)).toEqual(["Side App", "Jojobuddy"]);
+    expect(restored.projects[0]?.bullets[0]).toBe("Built a demo.");
+  });
+
+  it("does not duplicate projects already present", () => {
+    const withProject = {
+      ...base,
+      projects: [
+        {
+          name: "Jojobuddy",
+          role: "owner",
+          startDate: "",
+          endDate: "",
+          bullets: ["Tailored bullets."],
+        },
+      ],
+    };
+    const restored = ensureMasterProjects(withProject, {
+      identity: { name: "Rui Tang", email: "", links: [] },
+      skills: [],
+      experiences: [],
+      projects: [
+        {
+          id: "p1",
+          name: "Jojobuddy",
+          summary: "",
+          techStack: [],
+          bullets: [{ id: "b1", raw: "Original." }],
+        },
+      ],
+      education: [],
+    });
+
+    expect(restored.projects).toHaveLength(1);
+    expect(restored.projects[0]?.bullets[0]).toBe("Tailored bullets.");
   });
 });
 
