@@ -1,5 +1,6 @@
 import { claimWork, failWork, finishWork, heartbeat, touchLock, workerId } from "../lib/work-store";
 import { runWorkJob } from "../lib/work-handlers";
+import { closePlaywrightBrowser } from "../lib/playwright-page";
 
 const IDLE_MS = 800;
 let currentJobId: string | null = null;
@@ -30,6 +31,7 @@ async function loop() {
     if (draining && !currentJobId) {
       console.log(`[worker] drain complete, exiting`);
       if (heartbeatTimer) clearInterval(heartbeatTimer);
+      await closePlaywrightBrowser();
       process.exit(0);
     }
 

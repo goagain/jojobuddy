@@ -5,6 +5,7 @@ import * as cheerio from "cheerio";
 import { fetchViaJobAdapters } from "./job-adapters";
 import { cleanText, htmlToText } from "./job-adapters/text";
 import { runPageInJsEngine } from "./js-engine";
+import { renderJobPageWithPlaywright } from "./playwright-page";
 
 const BLOCKED_HOSTS = new Set(["localhost", "metadata.google.internal"]);
 const PUBLIC_DNS_SERVERS = ["1.1.1.1", "8.8.8.8"];
@@ -270,7 +271,25 @@ export async function fetchJobPage(rawUrl: string): Promise<{
       };
     }
   } catch {
-    // Fall back to static extraction if JS engine fails
+    // Fall back to Playwright or static extraction if JS engine fails
+  }
+
+  try {
+    const playwrightPage = await renderJobPageWithPlaywright(url.toString());
+    if (playwrightPage && playwrightPage.text.length >= 40) {
+      return {
+        url: url.toString(),
+        title: playwrightPage.title,
+        company:
+          playwrightPage.company ||
+          $('meta[property="og:site_name"]').attr("content")?.trim() ||
+          "",
+        location: locationFromJobText(playwrightPage.text),
+        text: playwrightPage.text,
+      };
+    }
+  } catch {
+    // Fall back to static extraction if Playwright fails
   }
 
   $("script, style, noscript, svg, nav, footer, header, iframe, form").remove();

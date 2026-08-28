@@ -17,7 +17,7 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
 
   if (job.type === "parse_url") {
     const payload = job.payload as ParseUrlPayload;
-    await updateWorkProgress(id, { step: "JS engine fetching page", percent: 20 });
+    await updateWorkProgress(id, { step: "Fetching job page", percent: 20 });
     const page = await fetchJobPage(payload.url);
     await updateWorkProgress(id, { step: "Analyzing requirements and keywords", percent: 55 });
     const runtime = await pickParseRuntime(job.userId);
