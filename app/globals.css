@@ -226,6 +226,12 @@ select option {
   overflow: auto;
 }
 
+.choice-list {
+  max-height: min(280px, 40vh);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .model-row {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;

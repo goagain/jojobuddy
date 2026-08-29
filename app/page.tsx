@@ -480,8 +480,8 @@ function WorkbenchPage() {
     <div className="min-h-screen px-4 py-5 md:px-8">
       <AppHeader status={{ ok, hint }} />
       <main className="grid gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(420px,1.1fr)]">
-        <section className="no-print space-y-4">
-          <article className="panel">
+        <section className="no-print flex max-h-[calc(100dvh-5.5rem)] flex-col gap-4 xl:sticky xl:top-5 xl:self-start">
+          <article className="panel shrink-0">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="display text-[11px] tracking-[0.3em] kicker">{t("workbenchProfile")}</p>
@@ -500,7 +500,7 @@ function WorkbenchPage() {
                 {t("workbenchUploadOrFill")}
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="choice-list space-y-2">
                 {profiles.map((profile) => (
                   <button
                     key={profile.id}
@@ -524,8 +524,8 @@ function WorkbenchPage() {
             )}
           </article>
 
-          <article className="panel panel-gold">
-            <div className="mb-3 flex items-center justify-between">
+          <article className="panel panel-gold flex min-h-0 flex-1 flex-col">
+            <div className="mb-3 flex shrink-0 items-center justify-between">
               <div>
                 <p className="display text-[11px] tracking-[0.3em] kicker-gold">{t("workbenchJob")}</p>
                 <h2 className="text-xl font-black">{t("workbenchPickJob")}</h2>
@@ -543,7 +543,7 @@ function WorkbenchPage() {
                 {t("workbenchPasteOrUrl")}
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="choice-list min-h-0 flex-1 space-y-2">
                 {jobs.map((job) => {
                   const craftScore = craftScoresByJobId[job.id];
                   const activeSession = craftSessions[craftPairKey(profileId, job.id)];
@@ -578,11 +578,11 @@ function WorkbenchPage() {
               </div>
             )}
             {selectedJob ? (
-              <p className="mt-3 text-sm leading-6 muted">{selectedJob.excerpt}</p>
+              <p className="mt-3 shrink-0 text-sm leading-6 muted">{selectedJob.excerpt}</p>
             ) : null}
           </article>
 
-          <article className="panel space-y-3">
+          <article className="panel shrink-0 space-y-3">
             <div className="flex gap-3">
               <ModelSelect
                 stand="STAR PLATINUM"
