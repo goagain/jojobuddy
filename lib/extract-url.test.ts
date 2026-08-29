@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { describeFetchError, locationFromJobText } from "@/lib/extract-url";
+import { describeFetchError, isBotBlockedFetchStatus, locationFromJobText } from "@/lib/extract-url";
+
+describe("isBotBlockedFetchStatus", () => {
+  it("flags common bot-wall statuses", () => {
+    expect(isBotBlockedFetchStatus(401)).toBe(true);
+    expect(isBotBlockedFetchStatus(403)).toBe(true);
+    expect(isBotBlockedFetchStatus(429)).toBe(true);
+  });
+
+  it("does not flag missing pages or server errors", () => {
+    expect(isBotBlockedFetchStatus(404)).toBe(false);
+    expect(isBotBlockedFetchStatus(410)).toBe(false);
+    expect(isBotBlockedFetchStatus(502)).toBe(false);
+  });
+});
 
 describe("describeFetchError", () => {
   it("explains TLS altname mismatch", () => {

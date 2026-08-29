@@ -4,7 +4,6 @@ import { isIP } from "node:net";
 import * as cheerio from "cheerio";
 import { fetchViaJobAdapters } from "./job-adapters";
 import { cleanText, htmlToText } from "./job-adapters/text";
-import { runPageInJsEngine } from "./js-engine";
 import { normalizePostedAt } from "./parse-posted-at";
 import { renderJobPageWithPlaywright } from "./playwright-page";
 
@@ -83,8 +82,14 @@ function formatJobLocation(jobLocation: unknown): string {
 const BROWSER_HEADERS: Record<string, string> = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-  Accept: "text/html,application/xhtml+xml,application/json",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
 };
+
+/** HTTP statuses where a headless browser may succeed after plain fetch is blocked. */
+export function isBotBlockedFetchStatus(status: number) {
+  return status === 401 || status === 403 || status === 429;
+}
 
 export function describeFetchError(error: unknown): string {
   const err = error instanceof Error ? error : new Error(String(error));
@@ -234,6 +239,30 @@ function extractJsonLdJob($: cheerio.CheerioAPI): {
   };
 }
 
+async function fetchJobPageViaPlaywright(
+  url: URL,
+  companyFallback = "",
+  postedAt?: string,
+): Promise<{
+  url: string;
+  title: string;
+  company: string;
+  location: string;
+  text: string;
+  postedAt?: string;
+} | null> {
+  const playwrightPage = await renderJobPageWithPlaywright(url.toString());
+  if (!playwrightPage || playwrightPage.text.length < 40) return null;
+  return {
+    url: url.toString(),
+    title: playwrightPage.title,
+    company: playwrightPage.company || companyFallback,
+    location: locationFromJobText(playwrightPage.text),
+    text: playwrightPage.text,
+    postedAt,
+  };
+}
+
 export async function fetchJobPage(rawUrl: string): Promise<{
   url: string;
   title: string;
@@ -258,6 +287,10 @@ export async function fetchJobPage(rawUrl: string): Promise<{
 
   const { status, body: html } = await fetchText(url);
   if (status < 200 || status >= 300) {
+    if (isBotBlockedFetchStatus(status)) {
+      const playwrightPage = await fetchJobPageViaPlaywright(url);
+      if (playwrightPage) return playwrightPage;
+    }
     throw new Error(`Fetch failed (${status})`);
   }
   const $ = cheerio.load(html);
@@ -273,41 +306,10 @@ export async function fetchJobPage(rawUrl: string): Promise<{
       $("time[datetime]").first().attr("datetime"),
   );
 
+  const companyFallback = $('meta[property="og:site_name"]').attr("content")?.trim() || "";
   try {
-    const rendered = await runPageInJsEngine(html, url.toString());
-    if (rendered.text.length >= 40) {
-      const text = rendered.text;
-      return {
-        url: url.toString(),
-        title: rendered.title,
-        company:
-          rendered.company ||
-          $('meta[property="og:site_name"]').attr("content")?.trim() ||
-          "",
-        location: locationFromJobText(text),
-        text,
-        postedAt: metaPostedAt,
-      };
-    }
-  } catch {
-    // Fall back to Playwright or static extraction if JS engine fails
-  }
-
-  try {
-    const playwrightPage = await renderJobPageWithPlaywright(url.toString());
-    if (playwrightPage && playwrightPage.text.length >= 40) {
-      return {
-        url: url.toString(),
-        title: playwrightPage.title,
-        company:
-          playwrightPage.company ||
-          $('meta[property="og:site_name"]').attr("content")?.trim() ||
-          "",
-        location: locationFromJobText(playwrightPage.text),
-        text: playwrightPage.text,
-        postedAt: metaPostedAt,
-      };
-    }
+    const playwrightPage = await fetchJobPageViaPlaywright(url, companyFallback, metaPostedAt);
+    if (playwrightPage) return playwrightPage;
   } catch {
     // Fall back to static extraction if Playwright fails
   }

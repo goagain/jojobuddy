@@ -18,7 +18,7 @@ Personal AI resume workbench: **Star Platinum** tailors your master resume to a 
 - Next.js 16 · React 19 · Tailwind CSS 4
 - MongoDB
 - Background worker (URL fetch, resume parse, craft jobs)
-- Playwright (Chromium) for job pages when JSDOM is not enough
+- Playwright (Chromium) for SPA and bot-protected job pages
 
 ## Local development
 

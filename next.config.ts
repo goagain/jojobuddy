@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["unpdf", "mammoth", "jsdom", "playwright"],
+  serverExternalPackages: ["unpdf", "mammoth", "playwright"],
 };
 
 export default nextConfig;

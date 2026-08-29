@@ -18,7 +18,7 @@
 - Next.js 16 · React 19 · Tailwind CSS 4
 - MongoDB
 - 后台 worker（抓取链接、解析简历、生成任务）
-- Playwright（JSDOM 不够用时抓取职位页）
+- Playwright（Chromium）抓取 SPA / 反爬职位页
 
 ## 本地开发
 
