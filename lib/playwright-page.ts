@@ -7,6 +7,9 @@ export type PlaywrightPageSnapshot = {
   text: string;
 };
 
+/** Minimum visible JD length to treat Playwright render as successful. */
+export const MIN_RENDERED_JOB_TEXT = 200;
+
 let browserPromise: Promise<Browser> | null = null;
 
 /** Whether headless Chromium fallback is enabled (default on). Set JOJOBUDDY_PLAYWRIGHT=0 to disable. */
@@ -78,26 +81,38 @@ export async function renderJobPageWithPlaywright(
     });
     page.setDefaultTimeout(timeoutMs);
 
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+    await page.goto(url, { waitUntil: "load", timeout: timeoutMs });
     await page
-      .waitForSelector(
-        'main h1, main [class*="description"], main [class*="position"], article h1, [data-testid*="job"]',
-        { timeout: 8_000 },
+      .waitForFunction(
+        () => (document.body?.innerText?.replace(/\s+/g, " ").trim().length ?? 0) > 400,
+        { timeout: 12_000 },
       )
       .catch(async () => {
-        await page!.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => undefined);
-        await page!.waitForTimeout(1_500);
+        await page!.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+        await page!.waitForTimeout(2_000);
       });
 
     const captured = await page.evaluate(() => {
       document
-        .querySelectorAll("script, style, noscript, nav, footer, header, iframe, form, svg")
+        .querySelectorAll(
+          "script, style, noscript, nav, footer, header, iframe, form, svg, [role='dialog'], [aria-modal='true']",
+        )
         .forEach((el) => el.remove());
-      const main = document.querySelector(
-        'main, article, [class*="job"], [class*="description"], [class*="position-detail"], [class*="position_detail"], [class*="positionDetail"]',
-      );
-      const root = (main ?? document.body) as HTMLElement | null;
-      const text = (root?.innerText ?? "").trim();
+      const selectors = [
+        "main",
+        "article",
+        '[class*="job"]',
+        '[class*="description"]',
+        '[class*="position-detail"]',
+        '[class*="position_detail"]',
+        '[class*="positionDetail"]',
+        "body",
+      ];
+      const candidates = selectors.map((selector) => {
+        const el = document.querySelector(selector);
+        return (el as HTMLElement | null)?.innerText?.trim() ?? "";
+      });
+      const text = candidates.sort((a, b) => b.length - a.length)[0] ?? "";
       const title =
         document.querySelector("h1")?.textContent?.trim() ||
         document.querySelector('meta[property="og:title"]')?.getAttribute("content")?.trim() ||
@@ -113,7 +128,7 @@ export async function renderJobPageWithPlaywright(
       company: captured.company,
       bodyText: captured.text,
     });
-    return snapshot.text.length >= 40 ? snapshot : null;
+    return snapshot.text.length >= MIN_RENDERED_JOB_TEXT ? snapshot : null;
   } catch {
     return null;
   } finally {

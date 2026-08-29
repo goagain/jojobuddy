@@ -3,7 +3,7 @@ import https from "node:https";
 import { isIP } from "node:net";
 import * as cheerio from "cheerio";
 import { fetchViaJobAdapters } from "./job-adapters";
-import { cleanText, htmlToText } from "./job-adapters/text";
+import { cleanText, htmlToText, pickJobTextFromHtml } from "./job-adapters/text";
 import { normalizePostedAt } from "./parse-posted-at";
 import { renderJobPageWithPlaywright } from "./playwright-page";
 
@@ -325,9 +325,7 @@ export async function fetchJobPage(rawUrl: string): Promise<{
     $('meta[property="og:site_name"]').attr("content")?.trim() ||
     $('[class*="company"]').first().text().trim().slice(0, 80);
 
-  const main = $("main, article, [class*='job'], [class*='description']").first();
-  const body = (main.length ? main.text() : $("body").text()) || $.root().text();
-  const text = cleanText(body).slice(0, 20000);
+  const text = pickJobTextFromHtml($);
 
   if (text.length < 40) {
     throw new Error(

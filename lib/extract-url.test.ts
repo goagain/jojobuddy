@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { pickJobTextFromHtml } from "@/lib/job-adapters/text";
 import { describeFetchError, isBotBlockedFetchStatus, locationFromJobText } from "@/lib/extract-url";
+import * as cheerio from "cheerio";
+
+describe("pickJobTextFromHtml", () => {
+  it("prefers body when main is an empty shell", () => {
+    const html = `<html><body><main></main><div class="job-body">${"Role overview. ".repeat(40)}</div></body></html>`;
+    const $ = cheerio.load(html);
+    expect(pickJobTextFromHtml($).length).toBeGreaterThan(200);
+  });
+});
 
 describe("isBotBlockedFetchStatus", () => {
   it("flags common bot-wall statuses", () => {
