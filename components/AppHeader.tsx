@@ -42,9 +42,11 @@ const EXTERNAL_LINKS = [
 export function AppHeader({
   status,
   user: userProp,
+  className = "",
 }: {
   status?: { ok: boolean; hint: string };
   user?: { name: string; email: string; image?: string } | null;
+  className?: string;
 }) {
   const pathname = usePathname();
   const { t, locale, setLocale } = useI18n();
@@ -67,7 +69,7 @@ export function AppHeader({
   }, [userProp, pathname]);
 
   return (
-    <header className="no-print mb-6 flex flex-wrap items-end justify-between gap-4 border-b-4 border-[#e2c56a] pb-4">
+    <header className={`no-print mb-6 flex flex-wrap items-end justify-between gap-4 border-b-4 border-[#e2c56a] pb-4 ${className}`}>
       <div>
         <p className="text-[11px] font-black tracking-[0.45em] kicker-gold">{t("brandTagline")}</p>
         <Link href="/" aria-label="JoJobuddy" className="inline-block text-[#2d2940]">

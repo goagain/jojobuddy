@@ -239,16 +239,33 @@ select option {
   padding-right: 4px;
 }
 
+.workbench-page {
+  display: flex;
+  height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.workbench-main {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  gap: 1rem;
+}
+
+@media (min-width: 80rem) {
+  .workbench-main {
+    grid-template-columns: minmax(340px, 0.9fr) minmax(420px, 1.1fr);
+  }
+}
+
 .workbench-sidebar {
   display: flex;
-  height: calc(100dvh - 5.5rem);
-  max-height: calc(100dvh - 5.5rem);
+  min-height: 0;
+  height: 100%;
   flex-direction: column;
   gap: 1rem;
   overflow: hidden;
-  position: sticky;
-  top: 1.25rem;
-  align-self: start;
 }
 
 .workbench-sidebar-scroll {
@@ -262,6 +279,33 @@ select option {
 
 .workbench-controls {
   flex-shrink: 0;
+}
+
+.workbench-result {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 79.999rem) {
+  .workbench-page {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .workbench-main {
+    flex: none;
+    min-height: auto;
+  }
+
+  .workbench-sidebar {
+    height: min(72dvh, 720px);
+    max-height: min(72dvh, 720px);
+  }
+
+  .workbench-result {
+    overflow: visible;
+  }
 }
 
 .model-row {

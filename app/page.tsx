@@ -477,12 +477,12 @@ function WorkbenchPage() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-5 md:px-8">
-      <AppHeader status={{ ok, hint }} />
-      <main className="grid gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(420px,1.1fr)]">
+    <div className="workbench-page px-4 py-5 md:px-8">
+      <AppHeader status={{ ok, hint }} className="mb-4 shrink-0" />
+      <main className="workbench-main">
         <section className="workbench-sidebar no-print">
           <div className="workbench-sidebar-scroll">
-          <article className="panel shrink-0">
+            <article className="panel shrink-0">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="display text-[11px] tracking-[0.3em] kicker">{t("workbenchProfile")}</p>
@@ -585,7 +585,7 @@ function WorkbenchPage() {
           </div>
 
           <article className="workbench-controls panel space-y-3">
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 xl:flex-row">
               <ModelSelect
                 stand="STAR PLATINUM"
                 label={t("workbenchGenerator")}
@@ -677,27 +677,29 @@ function WorkbenchPage() {
             {error ? <p className="text-sm font-bold text-rose-700">{error}</p> : null}
           </article>
         </section>
-        <ResultPane
-          result={result}
-          busy={busy}
-          progress={progress}
-          boundContext={
-            selectedProfile && selectedJob
-              ? {
-                  profileId: selectedProfile.id,
-                  profileLabel: selectedProfile.name,
-                  personName: selectedProfile.personName,
-                  jobId: selectedJob.id,
-                  jobTitle: selectedJob.title,
-                  jobCompany: selectedJob.company,
-                  jobNumber: selectedJob.jobNumber,
-                  jobLabel: `${selectedJob.company ? `${selectedJob.company} / ` : ""}${selectedJob.title}`,
-                  jobSourceKind: selectedJob.sourceKind,
-                  jobSourceUrl: selectedJob.sourceUrl,
-                }
-              : undefined
-          }
-        />
+        <div className="workbench-result">
+          <ResultPane
+            result={result}
+            busy={busy}
+            progress={progress}
+            boundContext={
+              selectedProfile && selectedJob
+                ? {
+                    profileId: selectedProfile.id,
+                    profileLabel: selectedProfile.name,
+                    personName: selectedProfile.personName,
+                    jobId: selectedJob.id,
+                    jobTitle: selectedJob.title,
+                    jobCompany: selectedJob.company,
+                    jobNumber: selectedJob.jobNumber,
+                    jobLabel: `${selectedJob.company ? `${selectedJob.company} / ` : ""}${selectedJob.title}`,
+                    jobSourceKind: selectedJob.sourceKind,
+                    jobSourceUrl: selectedJob.sourceUrl,
+                  }
+                : undefined
+            }
+          />
+        </div>
       </main>
       <SRankOverlay open={sRank} onClose={() => setSRank(false)} />
     </div>
