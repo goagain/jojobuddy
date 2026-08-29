@@ -583,19 +583,34 @@ function WorkbenchPage() {
           </article>
 
           <article className="panel shrink-0 space-y-3">
-            <ModelSelect
-              stand="HEAVEN'S DOOR"
-              label={t("workbenchJudge")}
-              value={judgeModelId}
-              models={models}
-              onChange={(id) => {
-                setJudgeModelId(id);
-                syncWorkbenchUrl({ judgeModelId: id });
-              }}
-              emptyLabel={t("workbenchNeedModels")}
-              globalLabel={t("scopeGlobal")}
-              personalLabel={t("scopePersonal")}
-            />
+            <div className="flex gap-3">
+              <ModelSelect
+                stand="STAR PLATINUM"
+                label={t("workbenchGenerator")}
+                value={generatorModelId}
+                models={models}
+                onChange={(id) => {
+                  setGeneratorModelId(id);
+                  syncWorkbenchUrl({ generatorModelId: id });
+                }}
+                emptyLabel={t("workbenchNeedModels")}
+                globalLabel={t("scopeGlobal")}
+                personalLabel={t("scopePersonal")}
+              />
+              <ModelSelect
+                stand="HEAVEN'S DOOR"
+                label={t("workbenchJudge")}
+                value={judgeModelId}
+                models={models}
+                onChange={(id) => {
+                  setJudgeModelId(id);
+                  syncWorkbenchUrl({ judgeModelId: id });
+                }}
+                emptyLabel={t("workbenchNeedModels")}
+                globalLabel={t("scopeGlobal")}
+                personalLabel={t("scopePersonal")}
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm font-bold">
                 <input
@@ -658,22 +673,6 @@ function WorkbenchPage() {
               </p>
             ) : null}
             {error ? <p className="text-sm font-bold text-rose-700">{error}</p> : null}
-          </article>
-
-          <article className="panel shrink-0">
-            <ModelSelect
-              stand="STAR PLATINUM"
-              label={t("workbenchGenerator")}
-              value={generatorModelId}
-              models={models}
-              onChange={(id) => {
-                setGeneratorModelId(id);
-                syncWorkbenchUrl({ generatorModelId: id });
-              }}
-              emptyLabel={t("workbenchNeedModels")}
-              globalLabel={t("scopeGlobal")}
-              personalLabel={t("scopePersonal")}
-            />
           </article>
         </section>
         <ResultPane
