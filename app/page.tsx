@@ -480,7 +480,8 @@ function WorkbenchPage() {
     <div className="min-h-screen px-4 py-5 md:px-8">
       <AppHeader status={{ ok, hint }} />
       <main className="grid gap-4 xl:grid-cols-[minmax(340px,0.9fr)_minmax(420px,1.1fr)]">
-        <section className="no-print flex max-h-[calc(100dvh-5.5rem)] flex-col gap-4 xl:sticky xl:top-5 xl:self-start">
+        <section className="workbench-sidebar no-print">
+          <div className="workbench-sidebar-scroll">
           <article className="panel shrink-0">
             <div className="mb-3 flex items-center justify-between">
               <div>
@@ -524,7 +525,7 @@ function WorkbenchPage() {
             )}
           </article>
 
-          <article className="panel panel-gold flex min-h-0 flex-1 flex-col">
+          <article className="panel panel-gold flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="mb-3 flex shrink-0 items-center justify-between">
               <div>
                 <p className="display text-[11px] tracking-[0.3em] kicker-gold">{t("workbenchJob")}</p>
@@ -575,14 +576,15 @@ function WorkbenchPage() {
                   </button>
                   );
                 })}
+                {selectedJob ? (
+                  <p className="text-sm leading-6 muted">{selectedJob.excerpt}</p>
+                ) : null}
               </div>
             )}
-            {selectedJob ? (
-              <p className="mt-3 shrink-0 text-sm leading-6 muted">{selectedJob.excerpt}</p>
-            ) : null}
           </article>
+          </div>
 
-          <article className="panel shrink-0 space-y-3">
+          <article className="workbench-controls panel space-y-3">
             <div className="flex gap-3">
               <ModelSelect
                 stand="STAR PLATINUM"

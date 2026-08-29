@@ -239,6 +239,31 @@ select option {
   padding-right: 4px;
 }
 
+.workbench-sidebar {
+  display: flex;
+  height: calc(100dvh - 5.5rem);
+  max-height: calc(100dvh - 5.5rem);
+  flex-direction: column;
+  gap: 1rem;
+  overflow: hidden;
+  position: sticky;
+  top: 1.25rem;
+  align-self: start;
+}
+
+.workbench-sidebar-scroll {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: hidden;
+}
+
+.workbench-controls {
+  flex-shrink: 0;
+}
+
 .model-row {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;
