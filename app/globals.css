@@ -232,6 +232,13 @@ select option {
   padding-right: 4px;
 }
 
+.choice-list-fluid {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .model-row {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;
