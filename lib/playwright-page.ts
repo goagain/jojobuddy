@@ -10,6 +10,66 @@ export type PlaywrightPageSnapshot = {
 /** Minimum visible JD length to treat Playwright render as successful. */
 export const MIN_RENDERED_JOB_TEXT = 200;
 
+const JOB_TEXT_HINTS =
+  /qualification|responsibilit|requirement|what you(?:'|’)?ll do|about (the |this )?role|job description/i;
+
+export function scoreJobSnapshot(snapshot: PlaywrightPageSnapshot): number {
+  const text = snapshot.text;
+  let score = text.length;
+  if (JOB_TEXT_HINTS.test(text)) score += 500;
+  if (/page not found/i.test(text)) score -= 10_000;
+  if (/cookie|privacy policy|sign in|contact sales/i.test(text) && !JOB_TEXT_HINTS.test(text)) score -= 200;
+  return score;
+}
+
+export function pickBestJobSnapshot(snapshots: PlaywrightPageSnapshot[]): PlaywrightPageSnapshot | null {
+  const viable = snapshots.filter((snapshot) => snapshot.text.length >= MIN_RENDERED_JOB_TEXT);
+  if (viable.length === 0) return null;
+  return [...viable].sort((a, b) => scoreJobSnapshot(b) - scoreJobSnapshot(a))[0] ?? null;
+}
+
+async function captureDomSnapshot(
+  evaluate: <T>(pageFunction: () => T) => Promise<T>,
+): Promise<PlaywrightPageSnapshot> {
+  const captured = await evaluate(() => {
+    document
+      .querySelectorAll(
+        "script, style, noscript, nav, footer, header, form, svg, [role='dialog'], [aria-modal='true']",
+      )
+      .forEach((el) => el.remove());
+    const selectors = [
+      "main",
+      "article",
+      '[class*="job"]',
+      '[class*="description"]',
+      '[class*="position-detail"]',
+      '[class*="position_detail"]',
+      '[class*="positionDetail"]',
+      '[class*="posting"]',
+      "body",
+    ];
+    const candidates = selectors.map((selector) => {
+      const el = document.querySelector(selector);
+      return (el as HTMLElement | null)?.innerText?.trim() ?? "";
+    });
+    const text = candidates.sort((a, b) => b.length - a.length)[0] ?? "";
+    const title =
+      document.querySelector("h1")?.textContent?.trim() ||
+      document.querySelector('meta[property="og:title"]')?.getAttribute("content")?.trim() ||
+      "";
+    const company =
+      document.querySelector('meta[property="og:site_name"]')?.getAttribute("content")?.trim() || "";
+    return { title, company, text, documentTitle: document.title };
+  });
+
+  return snapshotFromDomText({
+    title: captured.title,
+    documentTitle: captured.documentTitle,
+    company: captured.company,
+    bodyText: captured.text,
+  });
+}
+
 let browserPromise: Promise<Browser> | null = null;
 
 /** Whether headless Chromium fallback is enabled (default on). Set JOJOBUDDY_PLAYWRIGHT=0 to disable. */
@@ -82,53 +142,19 @@ export async function renderJobPageWithPlaywright(
     page.setDefaultTimeout(timeoutMs);
 
     await page.goto(url, { waitUntil: "load", timeout: timeoutMs });
-    await page
-      .waitForFunction(
-        () => (document.body?.innerText?.replace(/\s+/g, " ").trim().length ?? 0) > 400,
-        { timeout: 12_000 },
-      )
-      .catch(async () => {
-        await page!.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
-        await page!.waitForTimeout(2_000);
-      });
+    await page.waitForTimeout(3_000);
 
-    const captured = await page.evaluate(() => {
-      document
-        .querySelectorAll(
-          "script, style, noscript, nav, footer, header, iframe, form, svg, [role='dialog'], [aria-modal='true']",
-        )
-        .forEach((el) => el.remove());
-      const selectors = [
-        "main",
-        "article",
-        '[class*="job"]',
-        '[class*="description"]',
-        '[class*="position-detail"]',
-        '[class*="position_detail"]',
-        '[class*="positionDetail"]',
-        "body",
-      ];
-      const candidates = selectors.map((selector) => {
-        const el = document.querySelector(selector);
-        return (el as HTMLElement | null)?.innerText?.trim() ?? "";
-      });
-      const text = candidates.sort((a, b) => b.length - a.length)[0] ?? "";
-      const title =
-        document.querySelector("h1")?.textContent?.trim() ||
-        document.querySelector('meta[property="og:title"]')?.getAttribute("content")?.trim() ||
-        "";
-      const company =
-        document.querySelector('meta[property="og:site_name"]')?.getAttribute("content")?.trim() || "";
-      return { title, company, text, documentTitle: document.title };
-    });
+    const snapshots: PlaywrightPageSnapshot[] = [];
+    for (const frame of page.frames()) {
+      try {
+        snapshots.push(await captureDomSnapshot((fn) => frame.evaluate(fn)));
+      } catch {
+        // Ignore frames that are not ready or cannot be evaluated.
+      }
+    }
 
-    const snapshot = snapshotFromDomText({
-      title: captured.title,
-      documentTitle: captured.documentTitle,
-      company: captured.company,
-      bodyText: captured.text,
-    });
-    return snapshot.text.length >= MIN_RENDERED_JOB_TEXT ? snapshot : null;
+    const snapshot = pickBestJobSnapshot(snapshots);
+    return snapshot;
   } catch {
     return null;
   } finally {
