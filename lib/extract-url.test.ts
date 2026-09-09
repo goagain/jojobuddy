@@ -13,6 +13,7 @@ describe("pickJobTextFromHtml", () => {
 
 describe("isBotBlockedFetchStatus", () => {
   it("flags common bot-wall statuses", () => {
+    expect(isBotBlockedFetchStatus(400)).toBe(true);
     expect(isBotBlockedFetchStatus(401)).toBe(true);
     expect(isBotBlockedFetchStatus(403)).toBe(true);
     expect(isBotBlockedFetchStatus(429)).toBe(true);

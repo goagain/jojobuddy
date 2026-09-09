@@ -88,7 +88,8 @@ const BROWSER_HEADERS: Record<string, string> = {
 
 /** HTTP statuses where a headless browser may succeed after plain fetch is blocked. */
 export function isBotBlockedFetchStatus(status: number) {
-  return status === 401 || status === 403 || status === 429;
+  // 400: some ATS sites (e.g. Meta Careers) reject non-browser clients with Bad Request
+  return status === 400 || status === 401 || status === 403 || status === 429;
 }
 
 export function describeFetchError(error: unknown): string {

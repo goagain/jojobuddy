@@ -142,7 +142,19 @@ export async function renderJobPageWithPlaywright(
     page.setDefaultTimeout(timeoutMs);
 
     await page.goto(url, { waitUntil: "load", timeout: timeoutMs });
-    await page.waitForTimeout(3_000);
+    await page
+      .waitForFunction(
+        () => {
+          const text = document.body?.innerText?.replace(/\s+/g, " ").trim() ?? "";
+          const h1 = document.querySelector("h1")?.textContent?.trim() ?? "";
+          return text.length > 400 || h1.length > 8;
+        },
+        { timeout: 12_000 },
+      )
+      .catch(async () => {
+        await page!.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => undefined);
+        await page!.waitForTimeout(2_000);
+      });
 
     const snapshots: PlaywrightPageSnapshot[] = [];
     for (const frame of page.frames()) {
