@@ -45,7 +45,9 @@ npm test
 
 ## Docker 部署
 
-同一镜像，通过 `JOJOBUDDY_ROLE` 区分角色（`web` | `worker`）。
+同一镜像，通过 `JOJOBUDDY_ROLE` 区分角色（`web` | `worker` | `migrate`）。
+
+Compose 会在 `web` / `worker` 之前跑一次一次性的 `migrate` 容器（建索引、引导 root），成功后退出。
 
 ```bash
 cp .env.example .env
@@ -128,7 +130,7 @@ gh workflow run release.yml -f version=0.0.26
 | `AUTH_URL` | 是 | 对外访问地址，如 `http://localhost:3000` |
 | `GOOGLE_CLIENT_ID` | 否 | Google OAuth |
 | `GOOGLE_CLIENT_SECRET` | 否 | Google OAuth |
-| `JOJOBUDDY_ROLE` | Docker | `web`、`worker`，或不设（单容器 web + worker） |
+| `JOJOBUDDY_ROLE` | Docker | `web`、`worker`、`migrate`（一次性建索引后退出），或不设（单容器 web + worker） |
 | `JOJOBUDDY_IMAGE` | Compose | 覆盖 compose 中的镜像 tag |
 
 默认值见 [`.env.example`](./.env.example)。

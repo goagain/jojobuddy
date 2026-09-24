@@ -5,12 +5,14 @@ import { spawn } from "node:child_process";
  * JOJOBUDDY_ROLE:
  *   web     → Next only
  *   worker  → background worker only
+ *   migrate → one-shot indexes / bootstrap, then exit
  *   unset / both / all → web + one worker in the same container
  */
 const roleEnv = (process.env.JOJOBUDDY_ROLE ?? "").trim().toLowerCase();
 
 const webCmd = ["npx", "next", "start"];
 const workerCmd = ["npx", "tsx", "worker/index.ts"];
+const migrateCmd = ["npx", "tsx", "scripts/migrate.ts"];
 
 function start(name, command) {
   console.log(`[docker] starting ${name}`);
@@ -30,6 +32,8 @@ if (roleEnv === "web") {
   children = [start("web", webCmd)];
 } else if (roleEnv === "worker") {
   children = [start("worker", workerCmd)];
+} else if (roleEnv === "migrate") {
+  children = [start("migrate", migrateCmd)];
 } else {
   if (roleEnv && roleEnv !== "both" && roleEnv !== "all") {
     console.warn(`[docker] unknown JOJOBUDDY_ROLE="${roleEnv}", falling back to web+worker`);

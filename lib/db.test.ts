@@ -13,6 +13,8 @@ class FakeMongoClient {
   checkouts = 0;
   closed = false;
 
+  static failConnectTimes = 0;
+
   constructor(_uri: string, options: Record<string, unknown> = {}) {
     this.options = options;
     FakeMongoClient.instances.push(this);
@@ -20,9 +22,14 @@ class FakeMongoClient {
 
   static reset() {
     FakeMongoClient.instances = [];
+    FakeMongoClient.failConnectTimes = 0;
   }
 
   async connect() {
+    if (FakeMongoClient.failConnectTimes > 0) {
+      FakeMongoClient.failConnectTimes -= 1;
+      throw new Error("ECONNREFUSED");
+    }
     return this;
   }
 
@@ -110,5 +117,19 @@ describe("mongo connection pool", () => {
     expect(FakeMongoClient.instances).toHaveLength(2);
     expect(FakeMongoClient.instances[1].closed).toBe(false);
     expect(FakeMongoClient.instances[1].inUse).toBe(0);
+  });
+
+  it("opens a new client after a failed connect so migrate can retry", async () => {
+    FakeMongoClient.failConnectTimes = 1;
+    const { pingMongo } = await loadDb();
+    const first = await pingMongo();
+    expect(first.ok).toBe(false);
+    expect(first.error).toBe("ECONNREFUSED");
+
+    const second = await pingMongo();
+    expect(second.ok).toBe(true);
+    expect(FakeMongoClient.instances).toHaveLength(2);
+    expect(FakeMongoClient.instances[0].closed).toBe(true);
+    expect(FakeMongoClient.instances[1].closed).toBe(false);
   });
 });

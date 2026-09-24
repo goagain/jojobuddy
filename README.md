@@ -45,7 +45,9 @@ npm test
 
 ## Docker
 
-One image; role is set with `JOJOBUDDY_ROLE` (`web` | `worker`).
+One image; role is set with `JOJOBUDDY_ROLE` (`web` | `worker` | `migrate`).
+
+Compose starts a one-shot `migrate` container (indexes and root bootstrap) before `web` and `worker`.
 
 ```bash
 cp .env.example .env
@@ -128,7 +130,7 @@ gh workflow run release.yml -f version=0.0.26
 | `AUTH_URL` | Yes | Public app URL, e.g. `http://localhost:3000` |
 | `GOOGLE_CLIENT_ID` | No | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | No | Google OAuth secret |
-| `JOJOBUDDY_ROLE` | Docker | `web`, `worker`, or unset (web + one worker in same container) |
+| `JOJOBUDDY_ROLE` | Docker | `web`, `worker`, `migrate` (one-shot indexes, then exit), or unset (web + one worker in same container) |
 | `JOJOBUDDY_IMAGE` | Compose | Override image tag in compose files |
 
 See [`.env.example`](./.env.example) for defaults.

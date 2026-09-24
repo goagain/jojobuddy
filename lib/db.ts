@@ -24,7 +24,17 @@ function getClientPromise(): Promise<MongoClient> {
   if (!globalWithMongo._jojobuddyMongo) {
     const client = new MongoClient(uri, mongoClientOptions());
     globalWithMongo._jojobuddyClient = client;
-    globalWithMongo._jojobuddyMongo = client.connect();
+    const pending = client.connect().catch((error: unknown) => {
+      if (globalWithMongo._jojobuddyMongo === pending) {
+        globalWithMongo._jojobuddyMongo = undefined;
+        if (globalWithMongo._jojobuddyClient === client) {
+          globalWithMongo._jojobuddyClient = undefined;
+        }
+      }
+      void client.close().catch(() => undefined);
+      throw error;
+    });
+    globalWithMongo._jojobuddyMongo = pending;
   }
   return globalWithMongo._jojobuddyMongo;
 }

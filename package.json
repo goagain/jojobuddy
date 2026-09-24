@@ -13,6 +13,7 @@
     "start": "node scripts/boot.mjs --prod",
     "start:web": "next start",
     "start:worker": "tsx worker/index.ts",
+    "migrate": "tsx scripts/migrate.ts",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
