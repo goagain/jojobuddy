@@ -9,7 +9,7 @@
     "dev": "node scripts/boot.mjs",
     "dev:web": "next dev --turbopack",
     "dev:worker": "tsx worker/index.ts",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "node scripts/boot.mjs --prod",
     "start:web": "next start",
     "start:worker": "tsx worker/index.ts",

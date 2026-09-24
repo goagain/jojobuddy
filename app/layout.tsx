@@ -16,6 +16,7 @@ const sans = Noto_Sans_SC({
   subsets: ["latin"],
   weight: ["400", "500", "700", "900"],
   variable: "--font-sans",
+  preload: false,
 });
 
 export const metadata: Metadata = {
