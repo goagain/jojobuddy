@@ -1,5 +1,6 @@
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "./db";
+import { runOnce } from "./run-once";
 import { renderCraftedResumeMarkdown } from "./render-crafted-resume";
 import { sortCraftedResumeMarkdown } from "./sort-crafted-resume";
 import type { CraftResult, CraftedResume } from "./types";
@@ -39,13 +40,15 @@ async function crafts(): Promise<Collection<CraftedDoc>> {
 }
 
 export async function ensureCraftIndexes() {
-  const col = await crafts();
-  await Promise.all([
-    col.createIndex({ userId: 1, profileId: 1, jobId: 1 }, { unique: true }),
-    col.createIndex({ userId: 1, updatedAt: -1 }),
-    col.createIndex({ jobId: 1 }),
-    col.createIndex({ profileId: 1 }),
-  ]);
+  return runOnce("craft-indexes", async () => {
+    const col = await crafts();
+    await Promise.all([
+      col.createIndex({ userId: 1, profileId: 1, jobId: 1 }, { unique: true }),
+      col.createIndex({ userId: 1, updatedAt: -1 }),
+      col.createIndex({ jobId: 1 }),
+      col.createIndex({ profileId: 1 }),
+    ]);
+  });
 }
 
 function toPublic(doc: CraftedDoc): CraftedResume {

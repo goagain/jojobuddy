@@ -17,6 +17,7 @@ services:
   mongo:
     image: mongo:7
     restart: unless-stopped
+    command: ["--wiredTigerCacheSizeGB", "0.5"]
     volumes:
       - jojobuddy-mongo:/data/db
     networks:
@@ -29,6 +30,7 @@ services:
     environment:
       JOJOBUDDY_ROLE: web
       MONGODB_URI: mongodb://mongo:27017/jojobuddy
+      MONGODB_MAX_POOL_SIZE: "20"
       AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
       AUTH_URL: ${AUTH_URL:-https://jojobuddy.goagain.me}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -49,6 +51,7 @@ services:
     environment:
       JOJOBUDDY_ROLE: worker
       MONGODB_URI: mongodb://mongo:27017/jojobuddy
+      MONGODB_MAX_POOL_SIZE: "5"
       AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
     depends_on:
       - mongo

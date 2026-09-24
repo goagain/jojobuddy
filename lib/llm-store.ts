@@ -1,4 +1,5 @@
 import { ObjectId, type Collection, type Filter } from "mongodb";
+import { runOnce } from "./run-once";
 import { getDb } from "./db";
 import { readResponseJson } from "./http-json";
 import {
@@ -114,13 +115,15 @@ function accessibleModelFilter(userId: string): Filter<ModelDoc> {
 }
 
 export async function ensureIndexes() {
-  const modelCol = await models();
-  await Promise.all([
-    modelCol.createIndex({ userId: 1, providerId: 1, modelId: 1 }, { unique: true }),
-    modelCol.createIndex({ scope: 1, providerId: 1, modelId: 1 }),
-    (await providers()).createIndex({ userId: 1, createdAt: 1 }),
-    (await providers()).createIndex({ scope: 1, createdAt: 1 }),
-  ]);
+  return runOnce("llm-indexes", async () => {
+    const modelCol = await models();
+    await Promise.all([
+      modelCol.createIndex({ userId: 1, providerId: 1, modelId: 1 }, { unique: true }),
+      modelCol.createIndex({ scope: 1, providerId: 1, modelId: 1 }),
+      (await providers()).createIndex({ userId: 1, createdAt: 1 }),
+      (await providers()).createIndex({ scope: 1, createdAt: 1 }),
+    ]);
+  });
 }
 
 export async function ensureSeed(userId: string) {

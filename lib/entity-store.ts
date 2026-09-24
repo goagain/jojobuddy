@@ -1,5 +1,6 @@
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "./db";
+import { runOnce } from "./run-once";
 import type { Job, JobSummary, Profile, ProfileSummary, SourceRecord } from "./entities";
 import { deleteCraftsForJob, deleteCraftsForProfile, deleteCraftsForJobs } from "./craft-store";
 import { normalizeCompanyName } from "./job-company";
@@ -115,13 +116,15 @@ async function jobs(): Promise<Collection<JobDoc>> {
 }
 
 export async function ensureEntityIndexes() {
-  const profileCol = await profiles();
-  const jobCol = await jobs();
-  await Promise.all([
-    profileCol.createIndex({ userId: 1, updatedAt: -1 }),
-    jobCol.createIndex({ userId: 1, updatedAt: -1 }),
-    jobCol.createIndex({ userId: 1, createdAt: 1 }),
-  ]);
+  return runOnce("entity-indexes", async () => {
+    const profileCol = await profiles();
+    const jobCol = await jobs();
+    await Promise.all([
+      profileCol.createIndex({ userId: 1, updatedAt: -1 }),
+      jobCol.createIndex({ userId: 1, updatedAt: -1 }),
+      jobCol.createIndex({ userId: 1, createdAt: 1 }),
+    ]);
+  });
 }
 
 export async function listProfiles(userId: string): Promise<ProfileSummary[]> {

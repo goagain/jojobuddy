@@ -1,6 +1,7 @@
 import { hostname } from "node:os";
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "./db";
+import { runOnce } from "./run-once";
 import type {
   PublicWorkJob,
   WorkJobType,
@@ -43,12 +44,15 @@ async function workers(): Promise<Collection<WorkerDoc>> {
 }
 
 export async function ensureWorkIndexes() {
-  const col = await jobs();
-  await Promise.all([
-    col.createIndex({ status: 1, createdAt: 1 }),
-    col.createIndex({ lockedAt: 1 }),
-    col.createIndex({ userId: 1, createdAt: -1 }),
-  ]);
+  return runOnce("work-indexes", async () => {
+    const col = await jobs();
+    await Promise.all([
+      col.createIndex({ status: 1, createdAt: 1 }),
+      col.createIndex({ status: 1, lockedAt: 1 }),
+      col.createIndex({ userId: 1, createdAt: -1 }),
+      (await workers()).createIndex({ lastSeen: -1 }),
+    ]);
+  });
 }
 
 function toPublic(doc: WorkJobDoc): PublicWorkJob {

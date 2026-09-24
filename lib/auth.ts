@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getDb } from "./db";
 import { hashPassword, verifyPassword } from "./password";
+import { runOnce } from "./run-once";
 
 export const SESSION_COOKIE = "jojo_session";
 export const OAUTH_COOKIE = "jojo_oauth";
@@ -49,11 +50,13 @@ async function sessions(): Promise<Collection<SessionDoc>> {
 }
 
 export async function ensureAuthIndexes() {
-  await Promise.all([
-    (await users()).createIndex({ email: 1 }, { unique: true }),
-    (await users()).createIndex({ googleId: 1 }, { unique: true, sparse: true }),
-    (await sessions()).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
-  ]);
+  return runOnce("auth-indexes", async () => {
+    await Promise.all([
+      (await users()).createIndex({ email: 1 }, { unique: true }),
+      (await users()).createIndex({ googleId: 1 }, { unique: true, sparse: true }),
+      (await sessions()).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    ]);
+  });
 }
 
 function toPublic(doc: UserDoc): PublicUser {
@@ -328,7 +331,7 @@ export async function getCurrentUser(): Promise<PublicUser | null> {
     (await cookies()).delete(SESSION_COOKIE);
     return null;
   }
-  await ensureRootBootstrap();
+  await runOnce("root-bootstrap", ensureRootBootstrap);
   const doc = await (await users()).findOne({ _id: new ObjectId(session.userId) });
   return doc ? toPublic(doc) : null;
 }

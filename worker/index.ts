@@ -1,4 +1,5 @@
-import { claimWork, failWork, finishWork, heartbeat, touchLock, workerId } from "../lib/work-store";
+import { closeMongo } from "../lib/db";
+import { claimWork, ensureWorkIndexes, failWork, finishWork, heartbeat, touchLock, workerId } from "../lib/work-store";
 import { runWorkJob } from "../lib/work-handlers";
 import { closePlaywrightBrowser } from "../lib/playwright-page";
 
@@ -20,6 +21,7 @@ process.on("SIGINT", () => beginDrain("SIGINT"));
 
 async function loop() {
   console.log(`[worker] ${workerId()} started, waiting for queue`);
+  await ensureWorkIndexes();
   await heartbeat(null);
 
   heartbeatTimer = setInterval(() => {
@@ -32,6 +34,7 @@ async function loop() {
       console.log(`[worker] drain complete, exiting`);
       if (heartbeatTimer) clearInterval(heartbeatTimer);
       await closePlaywrightBrowser();
+      await closeMongo();
       process.exit(0);
     }
 
