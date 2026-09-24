@@ -21,7 +21,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers
-# Role via JOJOBUDDY_ROLE at runtime: web | worker | migrate | unset(=web+one worker)
+# Role via JOJOBUDDY_ROLE at runtime: web | worker | migrate | unset(=migrate then web+worker)
 
 RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs

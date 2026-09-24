@@ -128,7 +128,6 @@ export async function ensureEntityIndexes() {
 }
 
 export async function listProfiles(userId: string): Promise<ProfileSummary[]> {
-  await ensureEntityIndexes();
   const docs = await (await profiles()).find({ userId }).sort({ updatedAt: -1 }).toArray();
   return docs.map(toProfileSummary);
 }
@@ -183,13 +182,11 @@ export async function deleteProfile(userId: string, id: string): Promise<boolean
 }
 
 export async function listJobs(userId: string): Promise<JobSummary[]> {
-  await ensureEntityIndexes();
   const docs = await (await jobs()).find({ userId }).sort({ updatedAt: -1 }).toArray();
   return docs.map(toJobSummary);
 }
 
 export async function listUrlJobs(userId: string): Promise<Job[]> {
-  await ensureEntityIndexes();
   const docs = await (await jobs())
     .find({
       userId,
@@ -286,7 +283,6 @@ export async function deleteJob(userId: string, id: string): Promise<boolean> {
 export const STALE_JOB_DAYS = 30;
 
 export async function deleteJobsOlderThan(userId: string, olderThanDays: number): Promise<number> {
-  await ensureEntityIndexes();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - olderThanDays);
   const col = await jobs();

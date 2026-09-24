@@ -77,7 +77,6 @@ export async function saveCraftedResume(input: {
   jobCompany: string;
   result: CraftResult;
 }): Promise<CraftedResume> {
-  await ensureCraftIndexes();
   const now = new Date();
   const result = await (await crafts()).findOneAndUpdate(
     { userId: input.userId, profileId: input.profileId, jobId: input.jobId },
@@ -125,7 +124,6 @@ export type CraftPairSummary = CraftJobSummary & {
 
 /** Most recently updated craft per job for this user. */
 export async function listLatestCraftsByJob(userId: string): Promise<CraftJobSummary[]> {
-  await ensureCraftIndexes();
   const docs = await (await crafts())
     .find({ userId }, { projection: { jobId: 1, profileId: 1, updatedAt: 1 } })
     .sort({ updatedAt: -1 })
@@ -147,7 +145,6 @@ export async function listCraftSummariesForProfile(
   userId: string,
   profileId: string,
 ): Promise<CraftPairSummary[]> {
-  await ensureCraftIndexes();
   const docs = await (await crafts())
     .find(
       { userId, profileId },
@@ -181,17 +178,14 @@ export async function listCraftSummariesForProfile(
 }
 
 export async function deleteCraftsForProfile(profileId: string) {
-  await ensureCraftIndexes();
   await (await crafts()).deleteMany({ profileId });
 }
 
 export async function deleteCraftsForJob(jobId: string) {
-  await ensureCraftIndexes();
   await (await crafts()).deleteMany({ jobId });
 }
 
 export async function deleteCraftsForJobs(jobIds: string[]) {
   if (jobIds.length === 0) return;
-  await ensureCraftIndexes();
   await (await crafts()).deleteMany({ jobId: { $in: jobIds } });
 }

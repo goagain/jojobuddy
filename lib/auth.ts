@@ -85,7 +85,6 @@ export function canManageGlobal(user: Pick<PublicUser, "isRoot" | "isAdmin">) {
  * Also migrates legacy "first admin" installs when no isRoot is set.
  */
 export async function ensureRootBootstrap() {
-  await ensureAuthIndexes();
   const col = await users();
   const hasRoot = await col.findOne({ isRoot: true }, { projection: { _id: 1 } });
   if (hasRoot) return;
@@ -103,7 +102,6 @@ export async function ensureAdminBootstrap() {
 }
 
 async function shouldBecomeRoot() {
-  await ensureAuthIndexes();
   const col = await users();
   const total = await col.countDocuments();
   if (total === 0) return true;
@@ -112,13 +110,11 @@ async function shouldBecomeRoot() {
 }
 
 export async function listUsers(): Promise<PublicUser[]> {
-  await ensureAuthIndexes();
   const docs = await (await users()).find().sort({ createdAt: 1 }).toArray();
   return docs.map(toPublic);
 }
 
 export async function setUserAdmin(targetUserId: string, isAdmin: boolean): Promise<PublicUser> {
-  await ensureAuthIndexes();
   const col = await users();
   const target = await col.findOne({ _id: new ObjectId(targetUserId) });
   if (!target?._id) throw new Error("User not found");
@@ -151,7 +147,6 @@ export function appOrigin(request?: Request) {
 }
 
 export async function countUsers() {
-  await ensureAuthIndexes();
   return (await users()).countDocuments();
 }
 
@@ -192,7 +187,6 @@ async function applyCookie(name: string, value: string, options: CookieOptions, 
 }
 
 async function writeSession(userId: string, response?: NextResponse) {
-  await ensureAuthIndexes();
   const token = randomBytes(32).toString("hex");
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000);
@@ -221,7 +215,6 @@ export async function registerWithPassword(input: {
   name: string;
   password: string;
 }): Promise<PublicUser> {
-  await ensureAuthIndexes();
   const email = normalizeEmail(input.email);
   const name = input.name.trim() || email.split("@")[0];
   if (!email.includes("@")) throw new Error("Enter a valid email");
@@ -255,7 +248,6 @@ export async function registerWithPassword(input: {
 }
 
 export async function loginWithPassword(email: string, password: string): Promise<PublicUser> {
-  await ensureAuthIndexes();
   await ensureRootBootstrap();
   const doc = await (await users()).findOne({ email: normalizeEmail(email) });
   if (!doc?.passwordHash) throw new Error("Wrong email or password");
@@ -275,7 +267,6 @@ export async function loginWithGoogle(
   },
   response?: NextResponse,
 ): Promise<PublicUser> {
-  await ensureAuthIndexes();
   const email = normalizeEmail(profile.email);
   const col = await users();
   const now = new Date();

@@ -31,11 +31,10 @@ cp .env.example .env.local
 docker compose up -d mongo
 npm install
 npm run playwright:install   # first time only, for URL parsing fallback
-npm run dev:web              # terminal 1 — http://localhost:3000
-npm run dev:worker           # terminal 2 — required for parse / craft
+npm run dev                  # migrate, then web + worker — http://localhost:3000
 ```
 
-`npm run dev` runs web + worker together via `scripts/boot.mjs`.
+`npm run dev` / `npm start` with no `JOJOBUDDY_ROLE` run migrate, then web and worker together. Use `npm run dev:web` / `npm run dev:worker` / `npm run migrate` only when you need a single role (run migrate first).
 
 ### Tests
 
@@ -47,7 +46,7 @@ npm test
 
 One image; role is set with `JOJOBUDDY_ROLE` (`web` | `worker` | `migrate`).
 
-Compose starts a one-shot `migrate` container (indexes and root bootstrap) before `web` and `worker`.
+`npm run dev` and a single container with `JOJOBUDDY_ROLE` unset run **migrate, then web + worker**. Split compose services keep `web` / `worker` free of index creation — only `migrate` builds indexes.
 
 ```bash
 cp .env.example .env
@@ -130,7 +129,7 @@ gh workflow run release.yml -f version=0.0.26
 | `AUTH_URL` | Yes | Public app URL, e.g. `http://localhost:3000` |
 | `GOOGLE_CLIENT_ID` | No | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | No | Google OAuth secret |
-| `JOJOBUDDY_ROLE` | Docker | `web`, `worker`, `migrate` (one-shot indexes, then exit), or unset (web + one worker in same container) |
+| `JOJOBUDDY_ROLE` | Docker | `web`, `worker` (no index creation), `migrate` (one-shot indexes, then exit), or unset (migrate then web + worker) |
 | `JOJOBUDDY_IMAGE` | Compose | Override image tag in compose files |
 
 See [`.env.example`](./.env.example) for defaults.

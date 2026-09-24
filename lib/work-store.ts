@@ -72,7 +72,6 @@ export async function enqueueWork(input: {
   type: WorkJobType;
   payload: unknown;
 }): Promise<PublicWorkJob> {
-  await ensureWorkIndexes();
   const now = new Date();
   const doc: WorkJobDoc = {
     userId: input.userId,
@@ -153,7 +152,6 @@ export async function queueCounts(userId?: string) {
 }
 
 export async function claimWork(): Promise<WorkJobDoc | null> {
-  await ensureWorkIndexes();
   const now = new Date();
   const stale = new Date(Date.now() - STALE_MS);
   const result = await (await jobs()).findOneAndUpdate(

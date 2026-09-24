@@ -127,7 +127,6 @@ export async function ensureIndexes() {
 }
 
 export async function ensureSeed(userId: string) {
-  await ensureIndexes();
   const providerCol = await providers();
   const anyPersonal = await providerCol.findOne(personalProviderFilter(userId), {
     projection: { _id: 1 },

@@ -31,11 +31,10 @@ cp .env.example .env.local
 docker compose up -d mongo
 npm install
 npm run playwright:install   # 首次需要，用于 URL 解析兜底
-npm run dev:web              # 终端 1 — http://localhost:3000
-npm run dev:worker           # 终端 2 — 解析 / 生成必须开 worker
+npm run dev                  # 先 migrate，再启动 web + worker — http://localhost:3000
 ```
 
-`npm run dev` 会通过 `scripts/boot.mjs` 同时启动 web 与 worker。
+未设置 `JOJOBUDDY_ROLE` 时，`npm run dev` / `npm start` 会先跑 migrate，再同时启动 web 与 worker。需要单独进程时用 `npm run dev:web` / `npm run dev:worker` / `npm run migrate`（请先跑 migrate）。
 
 ### 测试
 
@@ -47,7 +46,7 @@ npm test
 
 同一镜像，通过 `JOJOBUDDY_ROLE` 区分角色（`web` | `worker` | `migrate`）。
 
-Compose 会在 `web` / `worker` 之前跑一次一次性的 `migrate` 容器（建索引、引导 root），成功后退出。
+`npm run dev` 以及未设置 `JOJOBUDDY_ROLE` 的单容器会先跑 **migrate，再启动 web + worker**。拆开的 compose 服务里，`web` / `worker` 不再建索引，只由 `migrate` 负责。
 
 ```bash
 cp .env.example .env
@@ -130,7 +129,7 @@ gh workflow run release.yml -f version=0.0.26
 | `AUTH_URL` | 是 | 对外访问地址，如 `http://localhost:3000` |
 | `GOOGLE_CLIENT_ID` | 否 | Google OAuth |
 | `GOOGLE_CLIENT_SECRET` | 否 | Google OAuth |
-| `JOJOBUDDY_ROLE` | Docker | `web`、`worker`、`migrate`（一次性建索引后退出），或不设（单容器 web + worker） |
+| `JOJOBUDDY_ROLE` | Docker | `web`、`worker`（不建索引）、`migrate`（一次性建索引后退出），或不设（先 migrate 再 web + worker） |
 | `JOJOBUDDY_IMAGE` | Compose | 覆盖 compose 中的镜像 tag |
 
 默认值见 [`.env.example`](./.env.example)。
