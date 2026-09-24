@@ -57,19 +57,6 @@ function toProfile(doc: ProfileDoc): Profile {
   };
 }
 
-function toProfileSummary(doc: ProfileDoc): ProfileSummary {
-  const profile = toProfile(doc);
-  return {
-    id: profile.id,
-    name: profile.name,
-    personName: profile.resume.identity.name,
-    headline: profile.resume.identity.headline,
-    experienceCount: profile.resume.experiences.length,
-    sourceCount: profile.sources.length,
-    updatedAt: profile.updatedAt,
-  };
-}
-
 function toJob(doc: JobDoc): Job {
   if (!doc._id) throw new Error("Job is missing id");
   return {
@@ -87,23 +74,6 @@ function toJob(doc: JobDoc): Job {
     postedAt: doc.postedAt ? iso(doc.postedAt) : undefined,
     createdAt: iso(doc.createdAt),
     updatedAt: iso(doc.updatedAt),
-  };
-}
-
-function toJobSummary(doc: JobDoc): JobSummary {
-  const job = toJob(doc);
-  return {
-    id: job.id,
-    title: job.title,
-    company: job.company,
-    location: job.location,
-    jobNumber: job.jobNumber,
-    sourceKind: job.sourceKind,
-    sourceUrl: job.sourceUrl,
-    excerpt: excerpt(job.parsedText || job.sourceText),
-    postedAt: job.postedAt,
-    createdAt: job.createdAt,
-    updatedAt: job.updatedAt,
   };
 }
 
@@ -128,8 +98,40 @@ export async function ensureEntityIndexes() {
 }
 
 export async function listProfiles(userId: string): Promise<ProfileSummary[]> {
-  const docs = await (await profiles()).find({ userId }).sort({ updatedAt: -1 }).toArray();
-  return docs.map(toProfileSummary);
+  const docs = await (await profiles())
+    .aggregate<{
+      _id: ObjectId;
+      name: string;
+      personName?: string;
+      headline?: string;
+      experienceCount: number;
+      sourceCount: number;
+      updatedAt: Date;
+    }>([
+      { $match: { userId } },
+      { $sort: { updatedAt: -1 } },
+      {
+        $project: {
+          name: 1,
+          updatedAt: 1,
+          personName: "$resume.identity.name",
+          headline: "$resume.identity.headline",
+          experienceCount: { $size: { $ifNull: ["$resume.experiences", []] } },
+          sourceCount: { $size: { $ifNull: ["$sources", []] } },
+        },
+      },
+    ])
+    .toArray();
+
+  return docs.map((doc) => ({
+    id: doc._id.toHexString(),
+    name: doc.name,
+    personName: doc.personName ?? "",
+    headline: doc.headline,
+    experienceCount: doc.experienceCount,
+    sourceCount: doc.sourceCount,
+    updatedAt: iso(doc.updatedAt),
+  }));
 }
 
 export async function getProfile(id: string, userId: string): Promise<Profile | null> {
@@ -182,8 +184,64 @@ export async function deleteProfile(userId: string, id: string): Promise<boolean
 }
 
 export async function listJobs(userId: string): Promise<JobSummary[]> {
-  const docs = await (await jobs()).find({ userId }).sort({ updatedAt: -1 }).toArray();
-  return docs.map(toJobSummary);
+  const docs = await (await jobs())
+    .aggregate<{
+      _id: ObjectId;
+      title: string;
+      company: string;
+      location?: string;
+      jobNumber?: string;
+      sourceKind: "paste" | "url";
+      sourceUrl?: string;
+      postedAt?: Date;
+      createdAt: Date;
+      updatedAt: Date;
+      excerptSource: string;
+    }>([
+      { $match: { userId } },
+      { $sort: { updatedAt: -1 } },
+      {
+        $project: {
+          title: 1,
+          company: 1,
+          location: 1,
+          jobNumber: 1,
+          sourceKind: 1,
+          sourceUrl: 1,
+          postedAt: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          excerptSource: {
+            $substrCP: [
+              {
+                $cond: [
+                  { $gt: [{ $strLenCP: { $ifNull: ["$parsedText", ""] } }, 0] },
+                  { $ifNull: ["$parsedText", ""] },
+                  { $ifNull: ["$sourceText", ""] },
+                ],
+              },
+              0,
+              160,
+            ],
+          },
+        },
+      },
+    ])
+    .toArray();
+
+  return docs.map((doc) => ({
+    id: doc._id.toHexString(),
+    title: doc.title,
+    company: doc.company,
+    location: doc.location,
+    jobNumber: doc.jobNumber,
+    sourceKind: doc.sourceKind,
+    sourceUrl: doc.sourceUrl,
+    excerpt: excerpt(doc.excerptSource),
+    postedAt: doc.postedAt ? iso(doc.postedAt) : undefined,
+    createdAt: iso(doc.createdAt),
+    updatedAt: iso(doc.updatedAt),
+  }));
 }
 
 export async function listUrlJobs(userId: string): Promise<Job[]> {
