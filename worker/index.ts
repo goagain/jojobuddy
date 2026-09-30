@@ -1,12 +1,23 @@
 import { closeMongo } from "../lib/db";
-import { claimWork, failWork, finishWork, heartbeat, touchLock, workerId } from "../lib/work-store";
+import { enqueueDueBoardCrawls } from "../lib/board-schedule";
+import { claimWork, failWork, finishWork, heartbeat, isWorkYielded, touchLock, workerId } from "../lib/work-store";
 import { runWorkJob } from "../lib/work-handlers";
 import { closePlaywrightBrowser } from "../lib/playwright-page";
 
 const IDLE_MS = 800;
+const SCHEDULE_MS = 60_000;
 let currentJobId: string | null = null;
 let draining = false;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let lastScheduleCheck = 0;
+
+async function scheduleDailyBoards() {
+  const now = Date.now();
+  if (now - lastScheduleCheck < SCHEDULE_MS) return;
+  lastScheduleCheck = now;
+  const queued = await enqueueDueBoardCrawls();
+  if (queued > 0) console.log(`[worker] queued ${queued} daily board update(s)`);
+}
 
 function beginDrain(signal: string) {
   if (draining) return;
@@ -28,10 +39,16 @@ async function loop() {
     if (currentJobId) void touchLock(currentJobId);
   }, 8000);
 
+  const scheduleTimer = setInterval(() => {
+    if (draining) return;
+    void scheduleDailyBoards().catch((error) => console.error("[worker] daily board schedule failed", error));
+  }, SCHEDULE_MS);
+
   for (;;) {
     if (draining && !currentJobId) {
       console.log(`[worker] drain complete, exiting`);
       if (heartbeatTimer) clearInterval(heartbeatTimer);
+      clearInterval(scheduleTimer);
       await closePlaywrightBrowser();
       await closeMongo();
       process.exit(0);
@@ -43,6 +60,7 @@ async function loop() {
         continue;
       }
 
+      await scheduleDailyBoards();
       const job = await claimWork();
       if (!job) {
         currentJobId = null;
@@ -58,9 +76,13 @@ async function loop() {
         await finishWork(id, result);
         console.log(`[worker] done ${id}`);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Work job failed";
-        console.error(`[worker] failed ${id}: ${message}`);
-        await failWork(id, message);
+        if (isWorkYielded(error)) {
+          console.log(`[worker] paused ${job.type} ${id} for a job import or resume craft`);
+        } else {
+          const message = error instanceof Error ? error.message : "Work job failed";
+          console.error(`[worker] failed ${id}: ${message}`);
+          await failWork(id, message);
+        }
       } finally {
         currentJobId = null;
         await heartbeat(null);

@@ -6,9 +6,11 @@ const mocks = vi.hoisted(() => ({
   ensureAuthIndexes: vi.fn(),
   ensureRootBootstrap: vi.fn(),
   ensureEntityIndexes: vi.fn(),
+  ensureBoardIndexes: vi.fn(),
   ensureWorkIndexes: vi.fn(),
   ensureCraftIndexes: vi.fn(),
   ensureLlmIndexes: vi.fn(),
+  ensureNotificationIndexes: vi.fn(),
 }));
 
 vi.mock("./db", () => ({
@@ -25,12 +27,20 @@ vi.mock("./entity-store", () => ({
   ensureEntityIndexes: mocks.ensureEntityIndexes,
 }));
 
+vi.mock("./board-store", () => ({
+  ensureBoardIndexes: mocks.ensureBoardIndexes,
+}));
+
 vi.mock("./work-store", () => ({
   ensureWorkIndexes: mocks.ensureWorkIndexes,
 }));
 
 vi.mock("./craft-store", () => ({
   ensureCraftIndexes: mocks.ensureCraftIndexes,
+}));
+
+vi.mock("./notifications", () => ({
+  ensureNotificationIndexes: mocks.ensureNotificationIndexes,
 }));
 
 vi.mock("./llm-store", () => ({
@@ -49,17 +59,21 @@ describe("runMigrations", () => {
     mocks.ensureAuthIndexes.mockReset();
     mocks.ensureRootBootstrap.mockReset();
     mocks.ensureEntityIndexes.mockReset();
+    mocks.ensureBoardIndexes.mockReset();
     mocks.ensureWorkIndexes.mockReset();
     mocks.ensureCraftIndexes.mockReset();
     mocks.ensureLlmIndexes.mockReset();
+    mocks.ensureNotificationIndexes.mockReset();
     mocks.pingMongo.mockResolvedValue({ ok: true });
     mocks.closeMongo.mockResolvedValue(undefined);
     mocks.ensureAuthIndexes.mockResolvedValue(undefined);
     mocks.ensureRootBootstrap.mockResolvedValue(undefined);
     mocks.ensureEntityIndexes.mockResolvedValue(undefined);
+    mocks.ensureBoardIndexes.mockResolvedValue(undefined);
     mocks.ensureWorkIndexes.mockResolvedValue(undefined);
     mocks.ensureCraftIndexes.mockResolvedValue(undefined);
     mocks.ensureLlmIndexes.mockResolvedValue(undefined);
+    mocks.ensureNotificationIndexes.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -81,6 +95,9 @@ describe("runMigrations", () => {
     mocks.ensureEntityIndexes.mockImplementation(async () => {
       order.push("entity");
     });
+    mocks.ensureBoardIndexes.mockImplementation(async () => {
+      order.push("board");
+    });
     mocks.ensureWorkIndexes.mockImplementation(async () => {
       order.push("work");
     });
@@ -90,12 +107,15 @@ describe("runMigrations", () => {
     mocks.ensureLlmIndexes.mockImplementation(async () => {
       order.push("llm");
     });
+    mocks.ensureNotificationIndexes.mockImplementation(async () => {
+      order.push("notifications");
+    });
 
     const { runMigrations } = await loadMigrate();
     await runMigrations();
 
     expect(order.slice(0, 3)).toEqual(["ping", "auth", "root"]);
-    expect(order).toEqual(expect.arrayContaining(["entity", "work", "craft", "llm"]));
+    expect(order).toEqual(expect.arrayContaining(["entity", "board", "work", "craft", "llm", "notifications"]));
     expect(mocks.closeMongo).not.toHaveBeenCalled();
   });
 

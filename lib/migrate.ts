@@ -1,8 +1,10 @@
 import { ensureAuthIndexes, ensureRootBootstrap } from "./auth";
+import { ensureBoardIndexes } from "./board-store";
 import { ensureCraftIndexes } from "./craft-store";
 import { closeMongo, pingMongo } from "./db";
 import { ensureEntityIndexes } from "./entity-store";
 import { ensureIndexes as ensureLlmIndexes } from "./llm-store";
+import { ensureNotificationIndexes } from "./notifications";
 import { ensureWorkIndexes } from "./work-store";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -33,8 +35,10 @@ export async function runMigrations() {
   await ensureRootBootstrap();
   await Promise.all([
     ensureEntityIndexes(),
+    ensureBoardIndexes(),
     ensureWorkIndexes(),
     ensureCraftIndexes(),
     ensureLlmIndexes(),
+    ensureNotificationIndexes(),
   ]);
 }

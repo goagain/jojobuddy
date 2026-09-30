@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/Logo";
+import { NotificationsBell } from "@/components/NotificationsBell";
 import { useI18n } from "@/components/LocaleProvider";
 import type { MessageKey } from "@/lib/i18n";
 
@@ -15,6 +16,7 @@ const LINK_DEFS: {
   { href: "/", key: "navWorkbench", match: (path) => path === "/" },
   { href: "/profiles", key: "navProfiles", match: (path) => path.startsWith("/profiles") },
   { href: "/jobs", key: "navJobs", match: (path) => path.startsWith("/jobs") },
+  { href: "/boards", key: "navBoards", match: (path) => path.startsWith("/boards") },
   { href: "/settings", key: "navSettings", match: (path) => path.startsWith("/settings") },
 ];
 
@@ -141,6 +143,7 @@ export function AppHeader({
               <img src={user.image} alt="" className="h-6 w-6 rounded-full border border-[#d7cfe4]" />
             ) : null}
             <span className="max-w-[160px] truncate font-bold">{user.name || user.email}</span>
+            <NotificationsBell />
             <button
               type="button"
               className="btn-danger"

@@ -146,7 +146,7 @@ function httpsGetViaIp(
   });
 }
 
-async function fetchText(url: URL, headers: Record<string, string> = BROWSER_HEADERS): Promise<{
+export async function fetchText(url: URL, headers: Record<string, string> = BROWSER_HEADERS): Promise<{
   status: number;
   body: string;
 }> {

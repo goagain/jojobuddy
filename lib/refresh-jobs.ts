@@ -1,4 +1,5 @@
 import { deleteJob, listUrlJobs, updateJob } from "./entity-store";
+import { WorkYielded } from "./work-store";
 import type { Job } from "./entities";
 import { fetchJobPage } from "./extract-url";
 import { resolveJobFields } from "./job-fields";
@@ -34,23 +35,36 @@ export async function refreshUserJobs(
   userId: string,
   runtime: LlmRuntime,
   onProgress?: (step: string, percent: number) => void | Promise<void>,
+  control?: {
+    jobIds?: string[];
+    nextIndex?: number;
+    shouldYield?: () => Promise<boolean>;
+    onYield?: (state: { jobIds: string[]; nextIndex: number }) => Promise<boolean>;
+  },
 ): Promise<RefreshJobsResult> {
   const jobs = await listUrlJobs(userId);
+  const byId = new Map(jobs.map((job) => [job.id, job]));
+  const ids = control?.jobIds ?? jobs.map((job) => job.id);
   const result: RefreshJobsResult = {
-    total: jobs.length,
+    total: ids.length,
     updated: 0,
     deleted: 0,
     skipped: 0,
     errors: [],
   };
 
-  if (jobs.length === 0) return result;
+  if (ids.length === 0) return result;
 
-  for (let index = 0; index < jobs.length; index += 1) {
-    const job = jobs[index];
+  for (let index = control?.nextIndex ?? 0; index < ids.length; index += 1) {
+    if (await control?.shouldYield?.()) {
+      const paused = await control?.onYield?.({ jobIds: ids, nextIndex: index });
+      if (paused) throw new WorkYielded();
+    }
+    const job = byId.get(ids[index]);
+    if (!job) continue;
     const label = job.title.trim() || job.company.trim() || job.id;
-    const basePercent = Math.round((index / jobs.length) * 90) + 5;
-    await onProgress?.(`Refreshing ${index + 1}/${jobs.length}: ${label}`, basePercent);
+    const basePercent = Math.round((index / ids.length) * 90) + 5;
+    await onProgress?.(`Refreshing ${index + 1}/${ids.length}: ${label}`, basePercent);
 
     const outcome = await refreshOneJob(userId, job, runtime);
     if (outcome.status === "updated") result.updated += 1;

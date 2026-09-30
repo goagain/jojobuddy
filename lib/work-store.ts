@@ -2,10 +2,11 @@ import { hostname } from "node:os";
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "./db";
 import { runOnce } from "./run-once";
-import type {
-  PublicWorkJob,
-  WorkJobType,
-  WorkProgress,
+import {
+  workPriority,
+  type PublicWorkJob,
+  type WorkJobType,
+  type WorkProgress,
 } from "./work-types";
 
 export type WorkJobDoc = {
@@ -17,6 +18,7 @@ export type WorkJobDoc = {
   result?: unknown;
   error?: string;
   progress?: WorkProgress;
+  priority: number;
   attempts: number;
   maxAttempts: number;
   lockedAt?: Date;
@@ -44,10 +46,14 @@ async function workers(): Promise<Collection<WorkerDoc>> {
 }
 
 export async function ensureWorkIndexes() {
+  await runOnce("work-priority-index", async () => {
+    await (await jobs()).createIndex({ status: 1, priority: -1, createdAt: 1 });
+  });
   return runOnce("work-indexes", async () => {
     const col = await jobs();
     await Promise.all([
       col.createIndex({ status: 1, createdAt: 1 }),
+      col.createIndex({ status: 1, priority: -1, createdAt: 1 }),
       col.createIndex({ status: 1, lockedAt: 1 }),
       col.createIndex({ userId: 1, createdAt: -1 }),
       (await workers()).createIndex({ lastSeen: -1 }),
@@ -78,6 +84,7 @@ export async function enqueueWork(input: {
     type: input.type,
     status: "queued",
     payload: input.payload,
+    priority: workPriority(input.type),
     attempts: 0,
     maxAttempts: 3,
     createdAt: now,
@@ -171,9 +178,59 @@ export async function claimWork(): Promise<WorkJobDoc | null> {
       },
       $inc: { attempts: 1 },
     },
-    { sort: { createdAt: 1 }, returnDocument: "after" },
+    { sort: { priority: -1, createdAt: 1 }, returnDocument: "after" },
   );
   return result ?? null;
+}
+
+export class WorkYielded extends Error {
+  constructor() {
+    super("Paused so a job import or resume craft can run first");
+    this.name = "WorkYielded";
+  }
+}
+
+export function isWorkYielded(error: unknown): error is WorkYielded {
+  return error instanceof WorkYielded;
+}
+
+/** True when a manual import or resume craft is waiting. */
+export async function hasHigherPriorityQueued(priority: number): Promise<boolean> {
+  const doc = await (await jobs()).findOne(
+    { status: "queued", priority: { $gt: priority } },
+    { projection: { _id: 1 } },
+  );
+  return Boolean(doc);
+}
+
+/** Put a background job back on the queue without burning a retry. */
+export async function releaseForHigherPriority(id: string, payload: unknown, progress: WorkProgress) {
+  const result = await (await jobs()).updateOne(
+    { _id: new ObjectId(id), status: "running", lockedBy: workerId() },
+    {
+      $set: {
+        status: "queued",
+        payload,
+        progress,
+        updatedAt: new Date(),
+      },
+      $unset: { lockedAt: "", lockedBy: "" },
+      $inc: { attempts: -1 },
+    },
+  );
+  return result.matchedCount > 0;
+}
+
+export async function hasActiveBoardCrawl(boardId: string) {
+  const doc = await (await jobs()).findOne(
+    {
+      type: "crawl_board",
+      status: { $in: ["queued", "running"] },
+      "payload.boardId": boardId,
+    },
+    { projection: { _id: 1 } },
+  );
+  return Boolean(doc);
 }
 
 export async function touchLock(id: string) {

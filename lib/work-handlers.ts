@@ -8,9 +8,11 @@ import {
 } from "./job-fields";
 import { structureResume } from "./parse-resume";
 import { uid } from "./resume-factory";
-import type { AnalyzeJobPayload, CraftPayload, ParseResumePayload, ParseUrlPayload, RefreshJobsPayload } from "./work-types";
+import { crawlSavedBoard, discoverSavedBoard, scoreSavedBoard } from "./job-boards/run";
+import type { AnalyzeJobPayload, CraftPayload, CrawlBoardPayload, DiscoverBoardPayload, ParseResumePayload, ParseUrlPayload, RefreshJobsPayload, ScoreBoardPayload } from "./work-types";
+import { workPriority } from "./work-types";
 import type { WorkJobDoc } from "./work-store";
-import { updateWorkProgress } from "./work-store";
+import { hasHigherPriorityQueued, releaseForHigherPriority, updateWorkProgress } from "./work-store";
 import { craftResume } from "./workflow";
 import { refreshUserJobs } from "./refresh-jobs";
 
@@ -60,13 +62,56 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
   }
 
   if (job.type === "refresh_jobs") {
-    void (job.payload as RefreshJobsPayload);
+    const payload = job.payload as RefreshJobsPayload;
     await updateWorkProgress(id, { step: "Loading URL jobs", percent: 5 });
     const runtime = await pickParseRuntime(job.userId);
     const result = await refreshUserJobs(job.userId, runtime, async (step, percent) => {
       await updateWorkProgress(id, { step, percent });
+    }, {
+      jobIds: payload.jobIds,
+      nextIndex: payload.nextIndex,
+      shouldYield: () => hasHigherPriorityQueued(workPriority(job.type)),
+      onYield: (state) =>
+        releaseForHigherPriority(id, state, {
+          step: "Paused — job import and resume craft go first",
+          percent: 0,
+        }),
     });
     return result;
+  }
+
+  if (job.type === "discover_board") {
+    const payload = job.payload as DiscoverBoardPayload;
+    return discoverSavedBoard(payload.boardId, job.userId, async (step, percent) => {
+      await updateWorkProgress(id, { step, percent });
+    });
+  }
+
+  if (job.type === "crawl_board") {
+    const payload = job.payload as CrawlBoardPayload;
+    return crawlSavedBoard(
+      payload.boardId,
+      job.userId,
+      payload.query,
+      payload.profileId,
+      async (step, percent) => {
+        await updateWorkProgress(id, { step, percent });
+      },
+      boardPriorityControl(job, id),
+    );
+  }
+
+  if (job.type === "score_board") {
+    const payload = job.payload as ScoreBoardPayload;
+    return scoreSavedBoard(
+      payload.boardId,
+      job.userId,
+      payload.profileId,
+      async (step, percent) => {
+        await updateWorkProgress(id, { step, percent });
+      },
+      boardPriorityControl(job, id),
+    );
   }
 
   if (job.type === "parse_resume") {
@@ -125,4 +170,14 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
   }
 
   throw new Error(`Unknown work type: ${job.type}`);
+}
+
+function boardPriorityControl(job: WorkJobDoc, id: string) {
+  const payload = job.payload as { resumeScoring?: boolean };
+  return {
+    resumeScoring: payload.resumeScoring,
+    shouldYield: () => hasHigherPriorityQueued(workPriority(job.type)),
+    pause: (step: string, percent: number) =>
+      releaseForHigherPriority(id, { ...(job.payload as Record<string, unknown>), resumeScoring: true }, { step, percent }),
+  };
 }

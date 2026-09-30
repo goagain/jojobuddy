@@ -1,5 +1,5 @@
 import { readResponseJson } from "./http-json";
-import type { PublicWorkJob, WorkProgress } from "./work-types";
+import type { PublicWorkJob, WorkJobType, WorkProgress } from "./work-types";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -47,7 +47,7 @@ export async function waitForWorkJob<T>(
 }
 
 export async function enqueueWork<T>(input: {
-  type: "parse_url" | "parse_resume" | "analyze_job" | "craft" | "refresh_jobs";
+  type: WorkJobType;
   payload: unknown;
   onProgress?: (progress?: WorkProgress, status?: string) => void;
 }): Promise<T> {

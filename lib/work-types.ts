@@ -1,6 +1,30 @@
-export const WORK_JOB_TYPES = ["parse_url", "parse_resume", "analyze_job", "craft", "refresh_jobs"] as const;
+import type { BoardQuery } from "./job-boards/types";
+
+export const WORK_JOB_TYPES = [
+  "parse_url",
+  "parse_resume",
+  "analyze_job",
+  "craft",
+  "refresh_jobs",
+  "discover_board",
+  "crawl_board",
+  "score_board",
+] as const;
 
 export type WorkJobType = (typeof WORK_JOB_TYPES)[number];
+
+/** Higher runs first. Manual job import and resume craft always outrank board crawls. */
+export function workPriority(type: WorkJobType): number {
+  switch (type) {
+    case "parse_url":
+    case "parse_resume":
+    case "analyze_job":
+    case "craft":
+      return 100;
+    default:
+      return 0;
+  }
+}
 
 export type WorkJobStatus = "queued" | "running" | "succeeded" | "failed";
 
@@ -25,7 +49,26 @@ export type AnalyzeJobPayload = {
   sourceUrl?: string;
 };
 
-export type RefreshJobsPayload = Record<string, never>;
+export type RefreshJobsPayload = {
+  jobIds?: string[];
+  nextIndex?: number;
+};
+
+export type DiscoverBoardPayload = { boardId: string };
+
+export type CrawlBoardPayload = {
+  boardId: string;
+  query: BoardQuery;
+  profileId?: string;
+  /** Set when a crawl paused so a job import or resume craft could run. */
+  resumeScoring?: boolean;
+};
+
+export type ScoreBoardPayload = {
+  boardId: string;
+  profileId: string;
+  resumeScoring?: boolean;
+};
 
 export type CraftPayload = {
   profileId: string;
