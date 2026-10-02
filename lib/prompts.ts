@@ -19,6 +19,7 @@ Hard rules:
 11. If rewrite instructions are given later, follow them without inventing facts. When an instruction conflicts with rule 1, obey rule 1.
 12. Order experiences, projects, and education reverse-chronologically: current/present first, then by end date newest→oldest, then by start date newest→oldest.
 13. identity.links: only include entries with a real url; never emit label-only empties.
+14. referral: a third-person blurb an employee can paste into an internal referral (内推). Same language as the resume. 50–100 words (Chinese: about 80–160 characters). Use the candidate's name, never "I". Lead with fit for this JD, then two or three concrete facts already in the resume. No greeting, no "I recommend", no contact details, and no invented metrics. Do not repeat this text inside summary.
 
 JSON schema:
 {
@@ -32,6 +33,7 @@ JSON schema:
     "links": [{ "label": string, "url": string }]
   },
   "summary": string,
+  "referral": string,
   "skills": [{ "category": string, "items": [string] }],
   "experiences": [{
     "title": string,
@@ -60,7 +62,7 @@ JSON schema:
 }`;
 
 const STAR_ACK =
-  "Understood. Master Resume is the superset; I will keep every employment entry (no timeline gaps), select JD-relevant bullets and projects, omit off-topic bullets/projects, never invent numbers, keep summary tight, and stay reverse-chronological.";
+  "Understood. Master Resume is the superset; I will keep every employment entry (no timeline gaps), select JD-relevant bullets and projects, omit off-topic bullets/projects, never invent numbers, keep summary tight, stay reverse-chronological, and add a separate 50–100 word third-person referral blurb.";
 
 export function buildStarPlatinumMessages(input: {
   masterResumeJson: string;

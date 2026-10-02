@@ -73,6 +73,10 @@ export const zh: Messages = {
   unknownError: "未知错误",
 
   starTitle: "白金之星 · 定制简历",
+  referralTitle: "内推介绍",
+  referralHint: "第三人称，大约 50–100 词，发给内推人用。不会写进简历正文。",
+  referralCopy: "复制",
+  referralCopied: "已复制",
   downloadMd: "下载 Markdown",
   printPdf: "打印 / PDF",
   starEmptyBusy: "白金之星正在以精密动作性 A 重组经历。欧啦欧啦欧啦……",

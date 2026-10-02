@@ -71,6 +71,10 @@ export const en = {
   unknownError: "Unknown error",
 
   starTitle: "Star Platinum · tailored resume",
+  referralTitle: "Referral intro",
+  referralHint: "Third person, about 50–100 words, for an internal referral. Not part of the resume.",
+  referralCopy: "Copy",
+  referralCopied: "Copied",
   downloadMd: "Download Markdown",
   printPdf: "Print / PDF",
   starEmptyBusy: "Star Platinum is rewriting with Precision A. Ora ora ora…",

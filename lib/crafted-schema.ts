@@ -53,6 +53,8 @@ export const craftedResumeSchema = z.object({
     links: z.array(linkSchema).default([]),
   }),
   summary: z.string().default(""),
+  /** Third-person intro for an internal referral. Not part of the resume body. */
+  referral: z.string().default(""),
   skills: z.array(skillGroupSchema).default([]),
   experiences: z.array(craftedExperienceSchema).default([]),
   projects: z.array(craftedProjectSchema).default([]),

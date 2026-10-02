@@ -37,6 +37,7 @@ const base: CraftedResumeDoc = {
     ],
   },
   summary: "Short summary.",
+  referral: "Rui Tang is a senior backend engineer.",
   skills: [],
   experiences: [
     {
@@ -54,6 +55,12 @@ const base: CraftedResumeDoc = {
 };
 
 describe("renderCraftedResumeMarkdown", () => {
+  it("keeps the referral blurb out of the resume", () => {
+    const md = renderCraftedResumeMarkdown(base);
+    expect(md).not.toContain("senior backend engineer");
+    expect(base.referral).toContain("senior backend engineer");
+  });
+
   it("omits links that have a label but no url", () => {
     const md = renderCraftedResumeMarkdown(base);
     expect(md).toContain("[LinkedIn](https://linkedin.com/in/x)");

@@ -49,6 +49,12 @@ export function ResultPane({
   const activeRound = rounds[safeRoundIndex];
   const displayedMarkdown = activeRound?.resumeMarkdown ?? result?.resumeMarkdown ?? "";
   const judgment = activeRound?.judgment ?? result?.judgment;
+  const referral = (activeRound?.crafted?.referral ?? result?.crafted?.referral ?? "").trim();
+  const [referralCopied, setReferralCopied] = useState(false);
+
+  useEffect(() => {
+    setReferralCopied(false);
+  }, [referral]);
 
   useEffect(() => {
     if (!result) {
@@ -88,6 +94,13 @@ export function ResultPane({
     link.download = `${resolveExportStem()}${roundSuffix}.md`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function copyReferral() {
+    if (!referral) return;
+    await navigator.clipboard.writeText(referral);
+    setReferralCopied(true);
+    window.setTimeout(() => setReferralCopied(false), 1500);
   }
 
   function printResume() {
@@ -231,6 +244,24 @@ export function ResultPane({
             {busy ? progress || t("starEmptyBusy") : t("starEmpty")}
           </p>
         )}
+        {referral ? (
+          <div className="no-print mt-4 border-2 border-black bg-white p-3">
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black tracking-widest">{t("referralTitle")}</p>
+                <p className="mt-1 text-[11px] font-medium text-black/60">{t("referralHint")}</p>
+              </div>
+              <button
+                type="button"
+                className="shrink-0 border-2 border-black bg-white px-3 py-1 text-xs font-black"
+                onClick={() => void copyReferral()}
+              >
+                {referralCopied ? t("referralCopied") : t("referralCopy")}
+              </button>
+            </div>
+            <p className="text-sm leading-6">{referral}</p>
+          </div>
+        ) : null}
       </article>
 
       <article className="menace no-print min-h-[280px] overflow-auto border-2 border-[#d8c49a] bg-[#f3e6c8] p-5 text-[#3a2a16] shadow-[6px_6px_0_rgba(45,41,64,0.12)]">

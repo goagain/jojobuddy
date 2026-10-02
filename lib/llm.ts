@@ -151,6 +151,9 @@ function mockCraftedResume(refined: boolean) {
     summary: refined
       ? "5 年平台研发经验，擅长把实时分析查询打进 1 秒内，并用可审计的多租户权限和灰度配置，让增长团队安全、快速地上线实验。"
       : "有数据平台和运营后台经验，做过查询优化、权限和内部工具，也能和多个团队一起把需求落地。熟悉 TypeScript、Python、PostgreSQL 和 Redis。",
+    referral: refined
+      ? "示例候选人是一位有五年平台经验的高级全栈工程师，目前在北极星科技负责实时分析与实验配置。他曾把高峰查询的 P95 从 4.2 秒降到 780 毫秒，并补上多租户权限隔离与可回滚的灰度发布。此前在流光互娱，他把活动配置上线从 6 小时缩短到 40 分钟。适合需要 TypeScript、Python 和可观测性背景、能独立推进平台稳定性的岗位。"
+      : "示例候选人是北极星科技的高级软件工程师，有数据平台和运营后台经验。他做过实时漏斗查询优化、多租户权限和实验配置发布，熟悉 TypeScript、Python、PostgreSQL 和 Redis，也能跨团队把需求落地。适合平台或全栈方向的内推。",
     skills: refined
       ? [
           { category: "语言", items: ["TypeScript", "Python", "SQL"] },
