@@ -1,12 +1,14 @@
 import type { FetchText } from "@/lib/job-adapters/types";
 import { ashbyBoardAdapter, findAshbyBoardUrl } from "./ashby";
+import { findGreenhouseBoardUrl, greenhouseBoardAdapter } from "./greenhouse";
 import type { BoardMeta, BoardQuery, JobBoardAdapter, StoredBoardListing } from "./types";
 
 export type { BoardFacet, BoardListing, BoardMeta, BoardQuery, JobBoardAdapter, StoredBoardListing } from "./types";
 export { ashbyBoardAdapter, ashbyBoardSlug, findAshbyBoardUrl, parseAshbyJobs } from "./ashby";
+export { greenhouseBoardAdapter, greenhouseBoardSlug, findGreenhouseBoardUrl, parseGreenhouseJobs } from "./greenhouse";
 
 /** Site-specific board readers. Add a file and append it here to patch a new ATS. */
-export const jobBoardAdapters: JobBoardAdapter[] = [ashbyBoardAdapter];
+export const jobBoardAdapters: JobBoardAdapter[] = [ashbyBoardAdapter, greenhouseBoardAdapter];
 
 export type DiscoveredBoard = {
   adapterId: string;
@@ -23,11 +25,16 @@ async function discoverEmbedded(url: URL, fetchText: FetchText) {
     return null;
   }
   if (status < 200 || status >= 300) return null;
-  const embedded = findAshbyBoardUrl(body);
-  if (!embedded) return null;
-  const found = await ashbyBoardAdapter.discover(new URL(embedded), fetchText);
+  const ashbyUrl = findAshbyBoardUrl(body);
+  if (ashbyUrl) {
+    const found = await ashbyBoardAdapter.discover(new URL(ashbyUrl), fetchText);
+    if (found) return { adapterId: ashbyBoardAdapter.id, ...found };
+  }
+  const greenhouseUrl = findGreenhouseBoardUrl(body);
+  if (!greenhouseUrl) return null;
+  const found = await greenhouseBoardAdapter.discover(new URL(greenhouseUrl), fetchText);
   if (!found) return null;
-  return { adapterId: ashbyBoardAdapter.id, ...found };
+  return { adapterId: greenhouseBoardAdapter.id, ...found };
 }
 
 export async function discoverJobBoard(url: URL, fetchText: FetchText) {

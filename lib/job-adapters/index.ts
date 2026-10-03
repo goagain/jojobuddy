@@ -1,5 +1,6 @@
 import { appleJobAdapter } from "./apple";
 import { ashbyJobAdapter } from "./ashby";
+import { greenhouseJobAdapter } from "./greenhouse";
 import { linkedInJobAdapter } from "./linkedin";
 import { tikTokJobAdapter } from "./tiktok";
 import type { AdaptedJobPage, FetchText, JobSiteAdapter } from "./types";
@@ -7,6 +8,7 @@ import type { AdaptedJobPage, FetchText, JobSiteAdapter } from "./types";
 export type { AdaptedJobPage, FetchText, JobSiteAdapter } from "./types";
 export { appleJobAdapter } from "./apple";
 export { ashbyJobAdapter } from "./ashby";
+export { greenhouseJobAdapter } from "./greenhouse";
 export { linkedInJobAdapter, linkedInJobId, parseLinkedInGuestHtml } from "./linkedin";
 export { parseTikTokJobPayload, tikTokJobAdapter, tikTokPositionId } from "./tiktok";
 
@@ -16,6 +18,7 @@ export const jobSiteAdapters: JobSiteAdapter[] = [
   linkedInJobAdapter,
   tikTokJobAdapter,
   ashbyJobAdapter,
+  greenhouseJobAdapter,
 ];
 
 export async function fetchViaJobAdapters(

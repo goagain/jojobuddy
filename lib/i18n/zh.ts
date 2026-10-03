@@ -321,11 +321,11 @@ export const zh: Messages = {
   jobInsightsAiHint: "使用设置页中的默认解析模型（与简历解析相同）。",
 
   boardsTitle: "招聘板",
-  boardsDesc: "粘贴公司的职位列表页。先读取网站自带的筛选项，再按你选的条件拉取岗位。",
+  boardsDesc: "粘贴公司的职位列表页，例如 Ashby 或 Greenhouse。先读取网站自带的筛选项，再按你选的条件拉取岗位。",
   boardsEmpty: "还没有招聘板。可以试试 OpenAI 的 Ashby 列表页。",
   boardsNew: "新建招聘板",
   boardsUrl: "职位列表链接",
-  boardsUrlPlaceholder: "https://jobs.ashbyhq.com/openai",
+  boardsUrlPlaceholder: "https://job-boards.greenhouse.io/reddit",
   boardsDiscover: "读取筛选项",
   boardsDiscovering: "正在读取筛选项…",
   boardsNotFound: "招聘板不存在",

@@ -1,4 +1,4 @@
-import type { BoardQuery, StoredBoardListing } from "./types";
+import { FACET_VALUE_SEPARATOR, type BoardQuery, type StoredBoardListing } from "./types";
 
 export const BOARD_MAX_JOBS = 200;
 
@@ -15,7 +15,7 @@ export function applyBoardQuery(listings: StoredBoardListing[], query: BoardQuer
   for (const [facetId, selected] of Object.entries(query.selections ?? {})) {
     if (!selected?.length) continue;
     const allow = new Set(selected);
-    rows = rows.filter((listing) => allow.has(listing.facets[facetId] ?? ""));
+    rows = rows.filter((listing) => facetSelected(listing.facets[facetId], allow));
   }
 
   if (query.role) {
@@ -38,4 +38,11 @@ export function applyBoardQuery(listings: StoredBoardListing[], query: BoardQuer
 
   rows = [...rows].sort((a, b) => (b.postedAt ?? "").localeCompare(a.postedAt ?? ""));
   return rows.slice(0, maxJobs);
+}
+
+function facetSelected(value: string | undefined, allow: Set<string>) {
+  if (!value) return false;
+  if (allow.has(value)) return true;
+  if (!value.includes(FACET_VALUE_SEPARATOR)) return false;
+  return value.split(FACET_VALUE_SEPARATOR).some((part) => allow.has(part));
 }

@@ -320,11 +320,11 @@ export const en = {
   jobInsightsAiHint: "Uses your default parse model from Settings (same as resume parsing).",
 
   boardsTitle: "Job boards",
-  boardsDesc: "Paste a company's job list. JoJobuddy reads the site's own filters, then pulls only the roles you ask for.",
+  boardsDesc: "Paste a company's job list, such as an Ashby or Greenhouse board. JoJobuddy reads the site's own filters, then pulls only the roles you ask for.",
   boardsEmpty: "No boards yet. Try a list page such as the OpenAI Ashby board.",
   boardsNew: "New board",
   boardsUrl: "Job list URL",
-  boardsUrlPlaceholder: "https://jobs.ashbyhq.com/openai",
+  boardsUrlPlaceholder: "https://job-boards.greenhouse.io/reddit",
   boardsDiscover: "Read filters",
   boardsDiscovering: "Reading filters…",
   boardsNotFound: "Board not found",

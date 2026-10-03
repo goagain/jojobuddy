@@ -51,6 +51,9 @@ export type BoardQuery = {
   levels?: JobLevel[];
 };
 
+/** Joins several values of one facet, such as a job listed in two offices. */
+export const FACET_VALUE_SEPARATOR = "\u001f";
+
 export type BoardListing = {
   id: string;
   title: string;
