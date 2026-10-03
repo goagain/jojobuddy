@@ -7,7 +7,6 @@ import { AppHeader } from "@/components/AppHeader";
 import { useI18n } from "@/components/LocaleProvider";
 import type { SourceRecord } from "@/lib/entities";
 import { formatHealthHint } from "@/lib/i18n";
-import type { Locale } from "@/lib/i18n/config";
 import type { PublicModel } from "@/lib/llm-types";
 import { renderMasterResumeMarkdown, serializeMasterResumeJson } from "@/lib/render-master-resume";
 import { emptyExperience, emptyResume, uid } from "@/lib/resume-factory";
@@ -37,8 +36,29 @@ function splitList(value: string) {
     .filter(Boolean);
 }
 
-function joinList(items: string[] | undefined, locale: Locale) {
-  return (items ?? []).join(locale === "zh" ? "，" : ", ");
+/** Keep the raw text while typing so a trailing English comma is not stripped before the next item. */
+function CommaListInput({
+  items,
+  onItems,
+  placeholder,
+}: {
+  items: string[] | undefined;
+  onItems: (items: string[]) => void;
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      placeholder={placeholder}
+      value={draft ?? (items ?? []).join(", ")}
+      onChange={(event) => {
+        const next = event.target.value;
+        setDraft(next);
+        onItems(splitList(next));
+      }}
+      onBlur={() => setDraft(null)}
+    />
+  );
 }
 
 export function ProfileEditor({ profileId }: { profileId?: string }) {
@@ -500,15 +520,13 @@ export function ProfileEditor({ profileId }: { profileId?: string }) {
               </label>
               <label className="field-label mt-3">
                 {t("techStackComma")}
-                <input
-                  value={joinList(experience.techStack, locale)}
-                  onChange={(event) =>
+                <CommaListInput
+                  items={experience.techStack}
+                  onItems={(techStack) =>
                     setResume((prev) => ({
                       ...prev,
                       experiences: prev.experiences.map((item) =>
-                        item.id === experience.id
-                          ? { ...item, techStack: splitList(event.target.value) }
-                          : item,
+                        item.id === experience.id ? { ...item, techStack } : item,
                       ),
                     }))
                   }
@@ -695,15 +713,13 @@ export function ProfileEditor({ profileId }: { profileId?: string }) {
                 }))
               }
             />
-            <input
+            <CommaListInput
               placeholder={t("itemsComma")}
-              value={joinList(skill.items, locale)}
-              onChange={(event) =>
+              items={skill.items}
+              onItems={(items) =>
                 setResume((prev) => ({
                   ...prev,
-                  skills: prev.skills.map((item, idx) =>
-                    idx === index ? { ...item, items: splitList(event.target.value) } : item,
-                  ),
+                  skills: prev.skills.map((item, idx) => (idx === index ? { ...item, items } : item)),
                 }))
               }
             />
@@ -735,11 +751,9 @@ export function ProfileEditor({ profileId }: { profileId?: string }) {
         </button>
         <label className="field-label">
           {t("softSkills")}
-          <input
-            value={joinList(resume.softSkills, locale)}
-            onChange={(event) =>
-              setResume((prev) => ({ ...prev, softSkills: splitList(event.target.value) }))
-            }
+          <CommaListInput
+            items={resume.softSkills}
+            onItems={(softSkills) => setResume((prev) => ({ ...prev, softSkills }))}
           />
         </label>
       </section>
