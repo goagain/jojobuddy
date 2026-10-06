@@ -20,6 +20,7 @@ Hard rules:
 12. Order experiences, projects, and education reverse-chronologically: current/present first, then by end date newest→oldest, then by start date newest→oldest.
 13. identity.links: only include entries with a real url; never emit label-only empties.
 14. referral: a third-person blurb an employee can paste into an internal referral (内推). Same language as the resume. 50–100 words (Chinese: about 80–160 characters). Use the candidate's name, never "I". Lead with fit for this JD, then two or three concrete facts already in the resume. No greeting, no "I recommend", no contact details, and no invented metrics. Do not repeat this text inside summary.
+15. identity.location: keep the candidate's current location from the Master Resume, except when the JD names exactly one work city and that city differs from the current location. In that case set identity.location to "Open to relocate to {city}" (city name only). Several cities, the same city, no city, or a remote-only posting: keep the current location. Do not change experience locations.
 
 JSON schema:
 {
@@ -135,7 +136,7 @@ rewriteInstructions must be executable WITHOUT inventing facts, e.g.:
 - "Promote OpenTelemetry / Prometheus wording where those tools already appear in experience."
 - "Drop the Action Card and Jira automation bullets; they are off-topic for this JD."
 - "Omit the Jojobuddy project section — no tie to this JD."
-Never ask for numbers, tools, titles, or ownership claims absent from the resume. Prefer delete / de-emphasize / reuse existing metrics. Do not ask to reorder jobs out of reverse-chronological order. Never instruct removing an entire work experience — only omit or shorten off-topic bullets, or omit irrelevant projects, when stronger JD-aligned material should be foregrounded.
+Never ask for numbers, tools, titles, or ownership claims absent from the resume. Prefer delete / de-emphasize / reuse existing metrics. Do not ask to reorder jobs out of reverse-chronological order. Never instruct removing an entire work experience — only omit or shorten off-topic bullets, or omit irrelevant projects, when stronger JD-aligned material should be foregrounded. Do not ask to replace a header location of "Open to relocate to {city}" when the JD names that single city.
 
 Keep atsKeywords.missed to ≤8 of the highest-value JD gaps. Prefer terms close to the candidate's actual stack.
 

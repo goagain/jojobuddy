@@ -5,6 +5,7 @@ import {
   jobMatchesCityFilter,
   parseJobCities,
   parseLocationCity,
+  relocateHeaderLocation,
   UNNAMED_LOCATION,
 } from "@/lib/job-location";
 
@@ -47,6 +48,27 @@ describe("formatJobLocations", () => {
 describe("jobLocationKeys", () => {
   it("falls back to unnamed when location is empty", () => {
     expect(jobLocationKeys({})).toEqual([UNNAMED_LOCATION]);
+  });
+});
+
+describe("relocateHeaderLocation", () => {
+  it("writes Open to relocate when the posting has one different city", () => {
+    expect(relocateHeaderLocation("上海", "Seattle, Washington, United States")).toBe(
+      "Open to relocate to Seattle",
+    );
+    expect(relocateHeaderLocation("San Francisco", "Seattle")).toBe("Open to relocate to Seattle");
+  });
+
+  it("keeps the current city when it matches the only posting city", () => {
+    expect(relocateHeaderLocation("Seattle, Washington", "Seattle")).toBeNull();
+    expect(relocateHeaderLocation("seattle", "Seattle, Washington, United States")).toBeNull();
+  });
+
+  it("leaves multi-city, remote, and empty postings unchanged", () => {
+    expect(relocateHeaderLocation("上海", "Austin / Denver")).toBeNull();
+    expect(relocateHeaderLocation("上海", "Remote")).toBeNull();
+    expect(relocateHeaderLocation("上海", "")).toBeNull();
+    expect(relocateHeaderLocation("", "Seattle")).toBe("Open to relocate to Seattle");
   });
 });
 

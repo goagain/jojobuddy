@@ -1,5 +1,6 @@
 import type { CraftedProject, CraftedResumeDoc } from "./crafted-schema";
 import { craftedResumeSchema } from "./crafted-schema";
+import { relocateHeaderLocation } from "./job-location";
 import { resumeDateValue } from "./resume-factory";
 import type { Experience, MasterResume } from "./schema";
 
@@ -268,7 +269,23 @@ export function ensureMasterProjects(crafted: CraftedResumeDoc, masterResume: Ma
   return sortCraftedResumeDoc({ ...crafted, projects });
 }
 
-export function parseAndNormalizeCrafted(raw: unknown, masterResume?: MasterResume): CraftedResumeDoc {
+/** Replace the header location when the posting is a single city the candidate is not already in. */
+export function applyRelocateHeader(
+  crafted: CraftedResumeDoc,
+  currentLocation: string | undefined,
+  jobLocation?: string,
+): CraftedResumeDoc {
+  const location = relocateHeaderLocation(currentLocation, jobLocation);
+  if (!location || crafted.identity.location === location) return crafted;
+  return { ...crafted, identity: { ...crafted.identity, location } };
+}
+
+export function parseAndNormalizeCrafted(
+  raw: unknown,
+  masterResume?: MasterResume,
+  jobLocation?: string,
+): CraftedResumeDoc {
   const crafted = sortCraftedResumeDoc(craftedResumeSchema.parse(raw));
-  return masterResume ? ensureMasterExperiences(crafted, masterResume) : crafted;
+  const withExperiences = masterResume ? ensureMasterExperiences(crafted, masterResume) : crafted;
+  return applyRelocateHeader(withExperiences, masterResume?.identity.location, jobLocation);
 }

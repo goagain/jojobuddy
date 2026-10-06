@@ -50,3 +50,22 @@ export function jobMatchesCityFilter(job: { location?: string }, selected: Set<s
   if (selected.size === 0) return true;
   return jobLocationKeys(job).some((city) => selected.has(city));
 }
+
+const REMOTE_LOCATION = /\bremote\b|远程/i;
+
+function sameCity(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
+ * Header location when a posting names exactly one non-remote city
+ * that is not the candidate's current city. Otherwise null (keep current).
+ */
+export function relocateHeaderLocation(currentLocation: string | undefined, jobLocation?: string): string | null {
+  const cities = parseJobCities(jobLocation);
+  if (cities.length !== 1) return null;
+  const place = cities[0];
+  if (REMOTE_LOCATION.test(place)) return null;
+  if (parseJobCities(currentLocation).some((city) => sameCity(city, place))) return null;
+  return `Open to relocate to ${place}`;
+}

@@ -147,6 +147,7 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
     const result = await craftResume({
       masterResume: profile.resume,
       jobDescription: jobDesc.parsedText,
+      jobLocation: jobDesc.location,
       generator,
       judge,
       options: payload.options,

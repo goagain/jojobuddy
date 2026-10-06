@@ -4,6 +4,7 @@ import {
   ensureMasterProjects,
   linkifyEmails,
   linkifyUrls,
+  parseAndNormalizeCrafted,
   renderCraftedResumeMarkdown,
 } from "@/lib/render-crafted-resume";
 import type { CraftedResumeDoc } from "@/lib/crafted-schema";
@@ -129,6 +130,27 @@ describe("ensureMasterExperiences", () => {
     }));
 
     expect(restored.experiences.map((item) => item.company)).toEqual(["Highspot", "Microsoft"]);
+  });
+});
+
+describe("parseAndNormalizeCrafted", () => {
+  it("sets the header to Open to relocate for a single different job city", () => {
+    const crafted = parseAndNormalizeCrafted(
+      base,
+      masterResume({ identity: { name: "Rui Tang", email: "", location: "上海", links: [] } }),
+      "Seattle, Washington, United States",
+    );
+    expect(crafted.identity.location).toBe("Open to relocate to Seattle");
+    expect(crafted.experiences[0]?.location).toBe("Toronto");
+  });
+
+  it("keeps the model location when the job city matches home", () => {
+    const crafted = parseAndNormalizeCrafted(
+      { ...base, identity: { ...base.identity, location: "Seattle" } },
+      masterResume({ identity: { name: "Rui Tang", email: "", location: "Seattle", links: [] } }),
+      "Seattle",
+    );
+    expect(crafted.identity.location).toBe("Seattle");
   });
 });
 

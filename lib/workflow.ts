@@ -48,6 +48,7 @@ function normalizeJudgment(raw: unknown): Judgment {
 export async function generateResume(input: {
   masterResume: MasterResume;
   jobDescription: string;
+  jobLocation?: string;
   runtime: LlmRuntime;
   rewriteInstructions?: string[];
   previousCrafted?: CraftedResumeDoc;
@@ -65,7 +66,11 @@ export async function generateResume(input: {
     }),
   });
 
-  const crafted = parseAndNormalizeCrafted(extractJsonObject(content), input.masterResume);
+  const crafted = parseAndNormalizeCrafted(
+    extractJsonObject(content),
+    input.masterResume,
+    input.jobLocation,
+  );
   return {
     crafted,
     resumeMarkdown: renderCraftedResumeMarkdown(crafted),
@@ -89,6 +94,7 @@ export async function judgeResume(input: {
 export async function craftResume(input: {
   masterResume: MasterResume;
   jobDescription: string;
+  jobLocation?: string;
   generator: LlmRuntime;
   judge: LlmRuntime;
   options?: CraftOptions;
@@ -115,6 +121,7 @@ export async function craftResume(input: {
     const { crafted, resumeMarkdown } = await generateResume({
       masterResume: input.masterResume,
       jobDescription: input.jobDescription,
+      jobLocation: input.jobLocation,
       runtime: input.generator,
       previousCrafted,
       rewriteInstructions,
