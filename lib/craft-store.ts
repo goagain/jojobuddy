@@ -102,6 +102,23 @@ export async function saveCraftedResume(input: {
   return toPublic(result);
 }
 
+/** Pass null or blank Markdown to drop the manual edit and show the generated resume again. */
+export async function saveCraftedResumeEdit(input: {
+  userId: string;
+  profileId: string;
+  jobId: string;
+  editedMarkdown: string | null;
+}): Promise<CraftedResume | null> {
+  const markdown = input.editedMarkdown?.trim() ? input.editedMarkdown : null;
+  const filter = { userId: input.userId, profileId: input.profileId, jobId: input.jobId };
+  const now = new Date();
+  const update = markdown
+    ? { $set: { "result.editedMarkdown": markdown, updatedAt: now } }
+    : { $unset: { "result.editedMarkdown": "" as const }, $set: { updatedAt: now } };
+  const doc = await (await crafts()).findOneAndUpdate(filter, update, { returnDocument: "after" });
+  return doc ? toPublic(doc) : null;
+}
+
 export async function getCraftedResume(
   userId: string,
   profileId: string,

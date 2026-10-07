@@ -15,6 +15,8 @@ export type CraftResult = {
   judgment: Judgment;
   rounds: CraftRound[];
   stoppedReason: "s_rank" | "threshold" | "max_rounds";
+  /** User's hand-edited Markdown for the final round; cleared when the resume is re-crafted. */
+  editedMarkdown?: string;
   usedModels: {
     generator: UsedModel;
     judge: UsedModel;

@@ -27,27 +27,54 @@ export type BoundContext = {
   jobSourceUrl?: string;
 };
 
+function ResumeMarkdown({ markdown }: { markdown: string }) {
+  return (
+    <Markdown
+      components={{
+        a: ({ href, children }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="resume-link">
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {markdown}
+    </Markdown>
+  );
+}
+
 export function ResultPane({
   result,
   busy,
   progress,
   boundContext,
   downloadName,
+  onSaveEdit,
 }: {
   result: CraftResult | null;
   busy: boolean;
   progress?: string;
   boundContext?: BoundContext;
   downloadName?: string;
+  /** Pass null to drop the manual edit. */
+  onSaveEdit?: (markdown: string | null) => Promise<void>;
 }) {
   const { t } = useI18n();
   const [roundIndex, setRoundIndex] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const rounds = result?.rounds ?? [];
   const hasMultipleRounds = rounds.length > 1;
   const safeRoundIndex = hasMultipleRounds ? Math.min(roundIndex, rounds.length - 1) : 0;
+  const isFinalRound = !hasMultipleRounds || safeRoundIndex === rounds.length - 1;
   const activeRound = rounds[safeRoundIndex];
-  const displayedMarkdown = activeRound?.resumeMarkdown ?? result?.resumeMarkdown ?? "";
+  const generatedMarkdown = activeRound?.resumeMarkdown ?? result?.resumeMarkdown ?? "";
+  const editedMarkdown = isFinalRound ? result?.editedMarkdown : undefined;
+  const displayedMarkdown = editedMarkdown ?? generatedMarkdown;
+  const canEdit = Boolean(result && onSaveEdit && isFinalRound && !busy);
   const judgment = activeRound?.judgment ?? result?.judgment;
   const referral = (activeRound?.crafted?.referral ?? result?.crafted?.referral ?? "").trim();
   const [referralCopied, setReferralCopied] = useState(false);
@@ -55,6 +82,41 @@ export function ResultPane({
   useEffect(() => {
     setReferralCopied(false);
   }, [referral]);
+
+  useEffect(() => {
+    setEditing(false);
+    setEditError(null);
+  }, [result?.resumeMarkdown, boundContext?.profileId, boundContext?.jobId]);
+
+  function startEditing() {
+    setDraft(displayedMarkdown);
+    setEditError(null);
+    setEditing(true);
+  }
+
+  async function persistEdit(markdown: string | null) {
+    if (!onSaveEdit) return;
+    setSaving(true);
+    setEditError(null);
+    try {
+      await onSaveEdit(markdown);
+      setEditing(false);
+    } catch (caught) {
+      setEditError(caught instanceof Error ? caught.message : t("unknownError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function saveDraft() {
+    const unchanged = draft === generatedMarkdown;
+    void persistEdit(unchanged || !draft.trim() ? null : draft);
+  }
+
+  function restoreGenerated() {
+    if (!window.confirm(t("editRestoreConfirm"))) return;
+    void persistEdit(null);
+  }
 
   useEffect(() => {
     if (!result) {
@@ -172,8 +234,36 @@ export function ResultPane({
               </p>
             ) : null}
           </div>
-          {result ? (
+          {result && editing ? (
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="border-2 border-black bg-[#6b3cff] px-3 py-1 text-xs font-black text-white disabled:opacity-50"
+                onClick={saveDraft}
+                disabled={saving}
+              >
+                {saving ? t("editSaving") : t("editSave")}
+              </button>
+              <button
+                type="button"
+                className="border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-50"
+                onClick={() => setEditing(false)}
+                disabled={saving}
+              >
+                {t("editCancel")}
+              </button>
+            </div>
+          ) : result ? (
+            <div className="flex flex-wrap gap-2">
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="border-2 border-black bg-white px-3 py-1 text-xs font-black"
+                  onClick={startEditing}
+                >
+                  {t("editResume")}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="border-2 border-black bg-white px-3 py-1 text-xs font-black"
@@ -220,24 +310,50 @@ export function ResultPane({
             })}
           </div>
         ) : null}
-        {result ? (
+        {result && editedMarkdown && !editing ? (
+          <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2 border-2 border-dashed border-[#6b3cff] bg-white/70 px-3 py-2">
+            <p className="text-[11px] font-bold text-black/70">{t("editManualBadge")}</p>
+            {onSaveEdit && !busy ? (
+              <button
+                type="button"
+                className="border-2 border-black bg-white px-2 py-0.5 text-[11px] font-black disabled:opacity-50"
+                onClick={restoreGenerated}
+                disabled={saving}
+              >
+                {t("editRestore")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {editError ? (
+          <p className="no-print mb-3 text-sm font-bold text-rose-700">{editError}</p>
+        ) : null}
+        {result && editing ? (
+          <div className="no-print grid gap-3 2xl:grid-cols-2">
+            <label className="grid gap-1">
+              <span className="text-[11px] font-black uppercase tracking-widest text-black/50">
+                {t("editMarkdownLabel")}
+              </span>
+              <textarea
+                className="min-h-[480px] w-full resize-y border-2 border-black bg-white p-3 font-mono text-xs leading-5 text-black"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                spellCheck={false}
+                autoFocus
+              />
+            </label>
+            <div className="grid content-start gap-1">
+              <span className="text-[11px] font-black uppercase tracking-widest text-black/50">
+                {t("editPreviewLabel")}
+              </span>
+              <div className="resume-sheet border-2 border-dashed border-black/20 p-3">
+                <ResumeMarkdown markdown={draft} />
+              </div>
+            </div>
+          </div>
+        ) : result ? (
           <div className="resume-sheet print-resume">
-            <Markdown
-              components={{
-                a: ({ href, children }) => (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="resume-link"
-                  >
-                    {children}
-                  </a>
-                ),
-              }}
-            >
-              {displayedMarkdown}
-            </Markdown>
+            <ResumeMarkdown markdown={displayedMarkdown} />
           </div>
         ) : (
           <p className="text-sm leading-6 text-black/60">
@@ -298,6 +414,9 @@ export function ResultPane({
               <ScoreRadar scores={judgment.scores} />
             </div>
             <div className="space-y-3 text-sm">
+              {editedMarkdown ? (
+                <p className="text-[11px] font-bold text-[#7a3b16]">{t("editJudgeNote")}</p>
+              ) : null}
               <p className="font-medium leading-6">{judgment.summary}</p>
               <div className="grid grid-cols-2 gap-2">
                 {dimensions.map(([key, label, weight]) => (

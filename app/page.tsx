@@ -176,6 +176,24 @@ function WorkbenchPage() {
     return (payload.craft?.result ?? null) as CraftResult | null;
   }, []);
 
+  const saveCraftEdit = useCallback(
+    async (editedMarkdown: string | null) => {
+      const forProfile = profileId;
+      const forJob = jobId;
+      const response = await fetch("/api/crafts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: forProfile, jobId: forJob, editedMarkdown }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? t("unknownError"));
+      if (pairRef.current.profileId === forProfile && pairRef.current.jobId === forJob) {
+        setResult((payload.craft?.result ?? null) as CraftResult | null);
+      }
+    },
+    [jobId, profileId, t],
+  );
+
   const loadCraftScores = useCallback(async (forProfileId: string) => {
     if (!forProfileId) {
       setCraftScoresByJobId({});
@@ -682,6 +700,7 @@ function WorkbenchPage() {
             result={result}
             busy={busy}
             progress={progress}
+            onSaveEdit={profileId && jobId ? saveCraftEdit : undefined}
             boundContext={
               selectedProfile && selectedJob
                 ? {
