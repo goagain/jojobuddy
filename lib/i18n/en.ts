@@ -81,6 +81,7 @@ export const en = {
   editCancel: "Cancel",
   editMarkdownLabel: "Markdown",
   editPreviewLabel: "Live preview",
+  editInsertSegment: "+ Insert block below",
   editManualBadge: "Showing your manual edit. Crafting again will replace it.",
   editRestore: "Restore generated",
   editRestoreConfirm: "Discard your manual edit and restore the Star Platinum version?",

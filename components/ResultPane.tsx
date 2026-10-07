@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import type { CraftResult } from "@/lib/types";
 import { useI18n } from "@/components/LocaleProvider";
 import { ScoreRadar } from "./ScoreRadar";
 import { buildResumeExportStem } from "@/lib/export-filename";
 import { extractOfficialJobNumber } from "@/lib/job-number";
+import { joinMarkdownSegments, splitMarkdownSegments } from "@/lib/markdown-segments";
 
 function fileStem(value: string) {
   const cleaned = value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
@@ -62,7 +63,8 @@ export function ResultPane({
   const { t } = useI18n();
   const [roundIndex, setRoundIndex] = useState(0);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
+  const [draftSegments, setDraftSegments] = useState<string[]>([]);
+  const articleRef = useRef<HTMLElement>(null);
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -89,9 +91,19 @@ export function ResultPane({
   }, [result?.resumeMarkdown, boundContext?.profileId, boundContext?.jobId]);
 
   function startEditing() {
-    setDraft(displayedMarkdown);
+    const segments = splitMarkdownSegments(displayedMarkdown);
+    setDraftSegments(segments.length > 0 ? segments : [""]);
     setEditError(null);
     setEditing(true);
+    articleRef.current?.scrollTo({ top: 0 });
+  }
+
+  function updateSegment(index: number, value: string) {
+    setDraftSegments((prev) => prev.map((segment, i) => (i === index ? value : segment)));
+  }
+
+  function insertSegmentAfter(index: number) {
+    setDraftSegments((prev) => [...prev.slice(0, index + 1), "", ...prev.slice(index + 1)]);
   }
 
   async function persistEdit(markdown: string | null) {
@@ -109,8 +121,9 @@ export function ResultPane({
   }
 
   function saveDraft() {
-    const unchanged = draft === generatedMarkdown;
-    void persistEdit(unchanged || !draft.trim() ? null : draft);
+    const draft = joinMarkdownSegments(draftSegments);
+    const unchanged = draft === joinMarkdownSegments(splitMarkdownSegments(generatedMarkdown));
+    void persistEdit(unchanged || !draft ? null : draft);
   }
 
   function restoreGenerated() {
@@ -181,8 +194,15 @@ export function ResultPane({
 
   return (
     <section className="grid min-h-0 gap-4 xl:grid-rows-[1.15fr_0.85fr]">
-      <article className="min-h-[320px] overflow-auto border-2 border-[#e2c56a] bg-[#fff8ea] p-6 text-[#1a1208] shadow-[6px_6px_0_rgba(45,41,64,0.12)]">
-        <header className="no-print mb-4 flex items-end justify-between gap-3">
+      <article
+        ref={articleRef}
+        className="min-h-[320px] overflow-auto border-2 border-[#e2c56a] bg-[#fff8ea] p-6 text-[#1a1208] shadow-[6px_6px_0_rgba(45,41,64,0.12)]"
+      >
+        <header
+          className={`no-print mb-4 flex items-end justify-between gap-3 ${
+            editing ? "sticky -top-6 z-10 -mx-6 -mt-6 border-b-2 border-black/10 bg-[#fff8ea] px-6 pb-3 pt-6" : ""
+          }`}
+        >
           <div className="min-w-0 flex-1">
             <p className="display text-[11px] tracking-[0.35em] text-[#6b3cff]">STAR PLATINUM</p>
             <div className="flex flex-wrap items-end gap-3">
@@ -329,27 +349,41 @@ export function ResultPane({
           <p className="no-print mb-3 text-sm font-bold text-rose-700">{editError}</p>
         ) : null}
         {result && editing ? (
-          <div className="no-print grid gap-3 2xl:grid-cols-2">
-            <label className="grid gap-1">
+          <div className="no-print grid gap-2">
+            <div className="hidden gap-3 md:grid md:grid-cols-2">
               <span className="text-[11px] font-black uppercase tracking-widest text-black/50">
                 {t("editMarkdownLabel")}
               </span>
-              <textarea
-                className="min-h-[480px] w-full resize-y border-2 border-black bg-white p-3 font-mono text-xs leading-5 text-black"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                spellCheck={false}
-                autoFocus
-              />
-            </label>
-            <div className="grid content-start gap-1">
               <span className="text-[11px] font-black uppercase tracking-widest text-black/50">
                 {t("editPreviewLabel")}
               </span>
-              <div className="resume-sheet border-2 border-dashed border-black/20 p-3">
-                <ResumeMarkdown markdown={draft} />
-              </div>
             </div>
+            {draftSegments.map((segment, index) => (
+              <div
+                key={index}
+                className="group grid gap-3 border-b border-dashed border-black/10 pb-2 md:grid-cols-2"
+              >
+                <div className="grid gap-1">
+                  <textarea
+                    className="field-sizing-content min-h-[2.5rem] w-full resize-none border-2 border-black bg-white px-2 py-1 font-mono text-xs leading-5 text-black"
+                    value={segment}
+                    onChange={(event) => updateSegment(index, event.target.value)}
+                    spellCheck={false}
+                    autoFocus={index === 0}
+                  />
+                  <button
+                    type="button"
+                    className="justify-self-start text-[10px] font-black text-black/40 opacity-0 transition group-hover:opacity-100 focus:opacity-100 hover:text-[#6b3cff]"
+                    onClick={() => insertSegmentAfter(index)}
+                  >
+                    {t("editInsertSegment")}
+                  </button>
+                </div>
+                <div className="resume-sheet min-w-0 self-start">
+                  <ResumeMarkdown markdown={segment} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : result ? (
           <div className="resume-sheet print-resume">

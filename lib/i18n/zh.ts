@@ -83,6 +83,7 @@ export const zh: Messages = {
   editCancel: "取消",
   editMarkdownLabel: "Markdown",
   editPreviewLabel: "实时预览",
+  editInsertSegment: "+ 在下方插入段落",
   editManualBadge: "当前显示手动编辑后的版本。重新生成会覆盖手动修改。",
   editRestore: "恢复生成版本",
   editRestoreConfirm: "丢弃手动修改并恢复白金之星生成的版本？",
