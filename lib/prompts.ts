@@ -21,6 +21,7 @@ Hard rules:
 13. identity.links: only include entries with a real url; never emit label-only empties.
 14. referral: a third-person blurb an employee can paste into an internal referral (内推). Same language as the resume. 50–100 words (Chinese: about 80–160 characters). Use the candidate's name, never "I". Lead with fit for this JD, then two or three concrete facts already in the resume. No greeting, no "I recommend", no contact details, and no invented metrics. Do not repeat this text inside summary.
 15. identity.location: keep the candidate's current location from the Master Resume, except when the JD names exactly one work city and that city differs from the current location. In that case set identity.location to "Open to relocate to {city}" (city name only). Several cities, the same city, no city, or a remote-only posting: keep the current location. Do not change experience locations.
+16. Preferred Qualifications are the most important part of the JD (also labeled "Preferred", "Nice to have", "Bonus", "加分项", "优先"). Minimum qualifications are table stakes every applicant meets; preferred ones decide who gets the interview. When choosing and ordering bullets, projects, skills, and the summary, give Master Resume evidence for preferred qualifications the highest priority, then minimum qualifications, then general responsibilities. Still never invent facts to match a preferred qualification.
 
 JSON schema:
 {
@@ -117,6 +118,11 @@ Score dimensions (weighted overall):
 - quantifiedImpact (30%): concrete numbers, baselines, time windows, or business outcomes already in the resume. If the resume has few numbers, score lower but do NOT instruct Star Platinum to invent metrics.
 - experienceMatch (20%): complexity, ownership, collaboration match JD level.
 - signalToNoise (20%): scannable, concise, JD-focused. Fluff, duplication, keyword dumps, long paragraphs, or off-topic product bullets → penalty.
+
+Preferred Qualifications first:
+- Preferred Qualifications ("Preferred", "Nice to have", "Bonus", "加分项", "优先") are the most important part of the JD; they separate shortlisted candidates from everyone who merely meets the minimum bar.
+- Weight preferred-qualification matches above minimum-qualification matches in keywordHit and experienceMatch.
+- When the resume has evidence for a preferred qualification but buries it, penalize and instruct Star Platinum to surface it first. Never ask it to claim a preferred qualification the resume does not support.
 
 Selection expectations:
 - The tailored resume should read like it was written for this JD only, not a dump of the Master Resume.
@@ -278,7 +284,8 @@ postedAt:
 - Empty string if no concrete date is stated. Do not invent dates from relative phrases alone ("2 weeks ago") unless you cannot resolve them.
 
 requirements:
-- 6–16 concise bullets covering must-have qualifications, preferred qualifications, and core responsibilities.
+- 6–16 concise bullets covering preferred qualifications, must-have qualifications, and core responsibilities.
+- Preferred Qualifications are the most important part of the JD: list them first and never drop them to fit the bullet limit.
 - Each bullet one line, actionable, faithful to the JD wording.
 - Merge duplicate ideas; split long paragraphs into separate bullets.
 - Use the JD's dominant language (English JD → English bullets; Chinese JD → Chinese bullets).
