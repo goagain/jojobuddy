@@ -54,6 +54,7 @@ export const masterResumeSchema = z.object({
     email: z.string().default(""),
     phone: z.string().optional(),
     location: z.string().optional(),
+    workAuthorization: z.string().optional(),
     headline: z.string().optional(),
     summary: z.string().optional(),
     links: z

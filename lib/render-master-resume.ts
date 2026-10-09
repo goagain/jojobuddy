@@ -64,6 +64,7 @@ function contactLine(identity: MasterResume["identity"]) {
   const parts = [
     identity.headline,
     identity.location,
+    identity.workAuthorization,
     mailtoLink(identity.email),
     identity.phone,
     ...links,

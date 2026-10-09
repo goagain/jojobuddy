@@ -253,6 +253,8 @@ export const en = {
   linksFormat: "Links (Label|URL, one per line)",
   phone: "Phone",
   location: "Location",
+  workAuthorization: "Work authorization / visa",
+  workAuthorizationPlaceholder: "e.g. Canadian citizen · TN visa eligible",
   experience: "Experience",
   workExperience: "Work experience",
   addExperience: "Add experience",

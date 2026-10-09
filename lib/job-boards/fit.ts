@@ -23,6 +23,7 @@ export function compactResume(resume: MasterResume): string {
   if (identity.headline) lines.push(`Headline: ${identity.headline}`);
   if (identity.summary) lines.push(`Summary: ${identity.summary}`);
   if (identity.location) lines.push(`Location: ${identity.location}`);
+  if (identity.workAuthorization) lines.push(`Work authorization: ${identity.workAuthorization}`);
   for (const group of resume.skills) {
     if (group.items.length === 0) continue;
     lines.push(`Skills (${group.category}): ${group.items.join(", ")}`);

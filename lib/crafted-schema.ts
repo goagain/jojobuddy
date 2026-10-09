@@ -48,6 +48,7 @@ export const craftedResumeSchema = z.object({
     name: z.string(),
     headline: z.string().optional().default(""),
     location: z.string().optional().default(""),
+    workAuthorization: z.string().optional().default(""),
     email: z.string().optional().default(""),
     phone: z.string().optional().default(""),
     links: z.array(linkSchema).default([]),

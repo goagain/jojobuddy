@@ -30,6 +30,7 @@ function hydrateResume(raw: unknown): MasterResume {
       email: String(identity.email ?? ""),
       phone: identity.phone ? String(identity.phone) : "",
       location: identity.location ? String(identity.location) : "",
+      workAuthorization: identity.workAuthorization ? String(identity.workAuthorization) : "",
       headline: identity.headline ? String(identity.headline) : "",
       summary: identity.summary ? String(identity.summary) : "",
       links: Array.isArray(identity.links) ? identity.links : [],

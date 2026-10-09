@@ -22,6 +22,7 @@ Hard rules:
 14. referral: a third-person blurb an employee can paste into an internal referral (内推). Same language as the resume. 50–100 words (Chinese: about 80–160 characters). Use the candidate's name, never "I". Lead with fit for this JD, then two or three concrete facts already in the resume. No greeting, no "I recommend", no contact details, and no invented metrics. Do not repeat this text inside summary.
 15. identity.location: keep the candidate's current location from the Master Resume, except when the JD names exactly one work city and that city differs from the current location. In that case set identity.location to "Open to relocate to {city}" (city name only). Several cities, the same city, no city, or a remote-only posting: keep the current location. Do not change experience locations.
 16. Preferred Qualifications are the most important part of the JD (also labeled "Preferred", "Nice to have", "Bonus", "加分项", "优先"). Minimum qualifications are table stakes every applicant meets; preferred ones decide who gets the interview. When choosing and ordering bullets, projects, skills, and the summary, give Master Resume evidence for preferred qualifications the highest priority, then minimum qualifications, then general responsibilities. Still never invent facts to match a preferred qualification.
+17. identity.workAuthorization: copy the Master Resume's identity.workAuthorization verbatim (visa / citizenship / work permit status, e.g. "Canadian citizen · TN visa eligible"). Empty string if absent. Never infer or invent visa status.
 
 JSON schema:
 {
@@ -30,6 +31,7 @@ JSON schema:
     "name": string,
     "headline": string,
     "location": string,
+    "workAuthorization": string,
     "email": string,
     "phone": string,
     "links": [{ "label": string, "url": string }]
@@ -201,11 +203,12 @@ Hard rules:
 4. Collect tech stacks from experience and skills sections.
 5. id fields may be short random strings.
 6. experiences / projects / education reverse-chronological: present/current first, then by end date newest→oldest.
-7. Output JSON only (no Markdown, no fences).
+7. identity.workAuthorization: visa, citizenship, or work-permit status only when the text states it (e.g. "Canadian citizen · TN visa eligible", "H-1B", "Green card holder"). Otherwise empty string.
+8. Output JSON only (no Markdown, no fences).
 
 JSON shape:
 {
-  "identity": { "name": "", "email": "", "phone": "", "location": "", "headline": "", "summary": "", "links": [{ "label": "", "url": "" }] },
+  "identity": { "name": "", "email": "", "phone": "", "location": "", "workAuthorization": "", "headline": "", "summary": "", "links": [{ "label": "", "url": "" }] },
   "skills": [{ "category": "", "items": [""] }],
   "experiences": [{
     "id": "",

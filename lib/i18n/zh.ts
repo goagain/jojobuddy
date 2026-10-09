@@ -254,6 +254,8 @@ export const zh: Messages = {
   linksFormat: "链接（Label|URL，一行一个）",
   phone: "电话",
   location: "地点",
+  workAuthorization: "签证 / 工作许可",
+  workAuthorizationPlaceholder: "例如 Canadian citizen · TN visa eligible",
   experience: "经历",
   workExperience: "工作经历",
   addExperience: "添加经历",

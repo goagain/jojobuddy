@@ -87,6 +87,7 @@ function contactLine(identity: CraftedResumeDoc["identity"]) {
   const parts = [
     identity.headline,
     identity.location,
+    identity.workAuthorization,
     mailtoLink(identity.email),
     identity.phone,
     ...links,
@@ -280,12 +281,24 @@ export function applyRelocateHeader(
   return { ...crafted, identity: { ...crafted.identity, location } };
 }
 
+/** Work authorization is a legal claim, so it always comes verbatim from the Master Resume. */
+export function applyWorkAuthorization(
+  crafted: CraftedResumeDoc,
+  workAuthorization: string | undefined,
+): CraftedResumeDoc {
+  const value = (workAuthorization ?? "").trim();
+  if (crafted.identity.workAuthorization === value) return crafted;
+  return { ...crafted, identity: { ...crafted.identity, workAuthorization: value } };
+}
+
 export function parseAndNormalizeCrafted(
   raw: unknown,
   masterResume?: MasterResume,
   jobLocation?: string,
 ): CraftedResumeDoc {
   const crafted = sortCraftedResumeDoc(craftedResumeSchema.parse(raw));
-  const withExperiences = masterResume ? ensureMasterExperiences(crafted, masterResume) : crafted;
-  return applyRelocateHeader(withExperiences, masterResume?.identity.location, jobLocation);
+  if (!masterResume) return applyRelocateHeader(crafted, undefined, jobLocation);
+  const withExperiences = ensureMasterExperiences(crafted, masterResume);
+  const withAuthorization = applyWorkAuthorization(withExperiences, masterResume.identity.workAuthorization);
+  return applyRelocateHeader(withAuthorization, masterResume.identity.location, jobLocation);
 }

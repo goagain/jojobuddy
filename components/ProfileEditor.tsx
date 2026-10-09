@@ -355,6 +355,19 @@ export function ProfileEditor({ profileId }: { profileId?: string }) {
             />
           </label>
           <label className="field-label">
+            {t("workAuthorization")}
+            <input
+              value={identity.workAuthorization ?? ""}
+              placeholder={t("workAuthorizationPlaceholder")}
+              onChange={(event) =>
+                setResume((prev) => ({
+                  ...prev,
+                  identity: { ...prev.identity, workAuthorization: event.target.value },
+                }))
+              }
+            />
+          </label>
+          <label className="field-label">
             {t("linksFormat")}
             <textarea
               rows={2}

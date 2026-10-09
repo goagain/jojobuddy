@@ -30,6 +30,7 @@ const base: CraftedResumeDoc = {
     name: "Rui Tang",
     headline: "Senior Backend Engineer",
     location: "",
+    workAuthorization: "",
     email: "a@b.com",
     phone: "",
     links: [
@@ -151,6 +152,33 @@ describe("parseAndNormalizeCrafted", () => {
       "Seattle",
     );
     expect(crafted.identity.location).toBe("Seattle");
+  });
+
+  it("copies work authorization from the Master Resume, overriding the model", () => {
+    const crafted = parseAndNormalizeCrafted(
+      { ...base, identity: { ...base.identity, workAuthorization: "US citizen" } },
+      masterResume({
+        identity: {
+          name: "Rui Tang",
+          email: "",
+          location: "Toronto",
+          workAuthorization: "Canadian citizen · TN visa eligible",
+          links: [],
+        },
+      }),
+    );
+    expect(crafted.identity.workAuthorization).toBe("Canadian citizen · TN visa eligible");
+    expect(renderCraftedResumeMarkdown(crafted)).toContain(
+      "Senior Backend Engineer  ·  Canadian citizen · TN visa eligible  ·  [a@b.com](mailto:a@b.com)",
+    );
+  });
+
+  it("clears model-invented work authorization when the Master Resume has none", () => {
+    const crafted = parseAndNormalizeCrafted(
+      { ...base, identity: { ...base.identity, workAuthorization: "H-1B" } },
+      masterResume(),
+    );
+    expect(crafted.identity.workAuthorization).toBe("");
   });
 });
 
