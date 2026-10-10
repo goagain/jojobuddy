@@ -199,6 +199,18 @@ select option {
   padding: 0;
 }
 
+.tag-alert {
+  display: inline-block;
+  border: 2px solid #b42318;
+  background: #fde8e6;
+  color: #9f1c14;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+}
+
 .field-row {
   display: flex;
   align-items: stretch;

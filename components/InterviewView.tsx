@@ -156,7 +156,9 @@ export function InterviewView({ digestId }: { digestId: string }) {
               {t("interviewsCollected", { count: digest.collected })}
               {digest.totalOnSite != null ? ` · ${t("interviewsOnSite", { count: digest.totalOnSite })}` : ""}
               {` · ${t("interviewsReadable", { count: digest.readableCount })}`}
-              {` · ${t("interviewsLocked", { count: digest.lockedCount })}`}
+              {digest.lockedCount > 0 ? (
+                <span className="tag-alert ml-2">{t("interviewsLocked", { count: digest.lockedCount })}</span>
+              ) : null}
             </p>
             {digest.status === "crawling" ? <p className="mt-2 text-sm muted">{t("interviewsProgress")}</p> : null}
             {digest.error ? <p className="mt-2 text-sm font-bold text-rose-700">{digest.error}</p> : null}
@@ -194,6 +196,9 @@ export function InterviewView({ digestId }: { digestId: string }) {
                             <a href={thread?.url} target="_blank" rel="noopener noreferrer" className="underline">
                               {source.title}
                             </a>
+                            {thread?.locked ? (
+                              <span className="tag-alert ml-1">{t("interviewsLockedBadge")}</span>
+                            ) : null}
                           </span>
                         );
                       })}
@@ -213,9 +218,11 @@ export function InterviewView({ digestId }: { digestId: string }) {
                     <a href={thread.url} target="_blank" rel="noopener noreferrer" className="font-bold underline">
                       {thread.title}
                     </a>
-                    <span className="text-xs font-black">
-                      {thread.locked ? t("interviewsLockedBadge") : t("interviewsReadableBadge")}
-                    </span>
+                    {thread.locked ? (
+                      <span className="tag-alert">{t("interviewsLockedBadge")}</span>
+                    ) : (
+                      <span className="text-xs font-black">{t("interviewsReadableBadge")}</span>
+                    )}
                   </div>
                   <p className="mt-1 text-xs muted">
                     {[thread.postedAt ? formatAddedAt(thread.postedAt, locale) : "", thread.interviewType, thread.difficulty, thread.category]
