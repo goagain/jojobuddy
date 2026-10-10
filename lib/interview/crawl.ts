@@ -1,5 +1,6 @@
 import type { QuestionKind, QuestionMention } from "./aggregate";
 import { aggregateQuestions, localSummary } from "./aggregate";
+import { clusterMentions } from "./cluster";
 import { roundFromSlang, slangGloss } from "./slang";
 import {
   bbcodeToText,
@@ -105,7 +106,7 @@ export async function crawlInterviewPosts(input: {
     mentions.push(...extracted);
   }
 
-  const questions = aggregateQuestions(mentions).slice(0, 100);
+  const questions = aggregateQuestions(clusterMentions(mentions)).slice(0, 100);
   const readableCount = threads.filter((thread) => !thread.locked).length;
   const lockedCount = threads.length - readableCount;
   return {

@@ -92,7 +92,8 @@ Rules:
 - Echo the post tid.
 - kind is coding, system_design, behavioral, or other.
 - leetcode is digits only when a LeetCode number is stated, otherwise null.
-- text is one concise line. Use the standard round name, not the homophone.
+- text is one short canonical problem name. Do not put the round (Phone screen, Onsite, 店面, 昂赛) in the text.
+- Multi-part follow-ups of one problem are one question. Example: spreadsheet set_cell, formulas, and cycle detection are one Spreadsheet question, not three.
 
 {"questions":[{"tid":1192472,"text":"LRU Cache","kind":"coding","leetcode":"146"}]}`,
       },
