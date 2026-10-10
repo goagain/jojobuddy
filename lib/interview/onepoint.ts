@@ -69,8 +69,22 @@ export function interviewSortId(sorts: Record<string, string>): number {
   return Number.isInteger(id) && id > 0 ? id : 311;
 }
 
+const LOCKED_NOTICE =
+  /积分高于|积分不足|攒积分|隐藏的内容|隐藏内容|才可浏览|才可以浏览|没有权限|无法查看|需要登录|请先登录|回复可见|回复后可见|权限不够/;
+
 export function isHiddenPost(message: string): boolean {
-  return /\[hide(?:[=|\]])/i.test(message);
+  const blocks = [...message.matchAll(/\[hide[^\]]*\]([\s\S]*?)\[\/hide\]/gi)];
+  if (blocks.length > 0) return blocks.every((block) => isLockedNotice(block[1] ?? ""));
+  return /\[hide(?:[=|\]])/i.test(message) && isLockedNotice(message);
+}
+
+function isLockedNotice(text: string): boolean {
+  const plain = decodeEntities(text.replace(/\[\/?[a-z*]+(?:=[^\]]+)?\]/gi, ""))
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!plain) return true;
+  if (plain.length > 160) return false;
+  return LOCKED_NOTICE.test(plain);
 }
 
 export function decodeEntities(value: string): string {
@@ -86,7 +100,9 @@ export function decodeEntities(value: string): string {
 }
 
 export function bbcodeToText(input: string): string {
-  const withoutHidden = input.replace(/\[hide[^\]]*\][\s\S]*?\[\/hide\]/gi, "");
+  const withoutHidden = input.replace(/\[hide[^\]]*\]([\s\S]*?)\[\/hide\]/gi, (_, inner: string) =>
+    isLockedNotice(inner) ? "" : inner,
+  );
   const links = withoutHidden.replace(/\[url=([^\]]+)\]([\s\S]*?)\[\/url\]/gi, "$2");
   const tags = links.replace(/\[\/?[a-z*]+(?:=[^\]]+)?\]/gi, "");
   return decodeEntities(tags).replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();

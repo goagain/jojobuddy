@@ -46,6 +46,13 @@ describe("1point3acres forum parsing", () => {
     expect(decodeOptionValue(difficulty, "2")).toBe("😣 Hard");
   });
 
+  it("keeps a hide block once the body itself has been unlocked", () => {
+    const unlocked = "[hide=200]电话面问了 LeetCode 146，然后做了一道 spreadsheet。[/hide]";
+    expect(isHiddenPost(unlocked)).toBe(false);
+    expect(bbcodeToText(unlocked)).toContain("LeetCode 146");
+    expect(bbcodeToText(`前言\n${unlocked}`)).toContain("前言");
+  });
+
   it("reads leetcode numbers from sort fields", () => {
     expect(leetcodeFromFields({ leet1: "146", leet2: "", leet3: "0" })).toEqual(["146"]);
   });
