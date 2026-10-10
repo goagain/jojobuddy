@@ -1,5 +1,6 @@
 import { ensureAuthIndexes, ensureRootBootstrap } from "./auth";
 import { ensureBoardIndexes } from "./board-store";
+import { ensureInterviewIndexes } from "./interview-store";
 import { ensureCraftIndexes } from "./craft-store";
 import { closeMongo, pingMongo } from "./db";
 import { ensureEntityIndexes } from "./entity-store";
@@ -36,6 +37,7 @@ export async function runMigrations() {
   await Promise.all([
     ensureEntityIndexes(),
     ensureBoardIndexes(),
+    ensureInterviewIndexes(),
     ensureWorkIndexes(),
     ensureCraftIndexes(),
     ensureLlmIndexes(),

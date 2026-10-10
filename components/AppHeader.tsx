@@ -17,6 +17,7 @@ const LINK_DEFS: {
   { href: "/profiles", key: "navProfiles", match: (path) => path.startsWith("/profiles") },
   { href: "/jobs", key: "navJobs", match: (path) => path.startsWith("/jobs") },
   { href: "/boards", key: "navBoards", match: (path) => path.startsWith("/boards") },
+  { href: "/interviews", key: "navInterviews", match: (path) => path.startsWith("/interviews") },
   { href: "/settings", key: "navSettings", match: (path) => path.startsWith("/settings") },
 ];
 

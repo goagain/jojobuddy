@@ -8,8 +8,9 @@ import {
 } from "./job-fields";
 import { structureResume } from "./parse-resume";
 import { uid } from "./resume-factory";
+import { crawlSavedInterview } from "./interview/run";
 import { crawlSavedBoard, discoverSavedBoard, scoreSavedBoard } from "./job-boards/run";
-import type { AnalyzeJobPayload, CraftPayload, CrawlBoardPayload, DiscoverBoardPayload, ParseResumePayload, ParseUrlPayload, RefreshJobsPayload, ScoreBoardPayload } from "./work-types";
+import type { AnalyzeJobPayload, CraftPayload, CrawlBoardPayload, CrawlInterviewPayload, DiscoverBoardPayload, ParseResumePayload, ParseUrlPayload, RefreshJobsPayload, ScoreBoardPayload } from "./work-types";
 import { workPriority } from "./work-types";
 import type { WorkJobDoc } from "./work-store";
 import { hasHigherPriorityQueued, releaseForHigherPriority, updateWorkProgress } from "./work-store";
@@ -99,6 +100,13 @@ export async function runWorkJob(job: WorkJobDoc): Promise<unknown> {
       },
       boardPriorityControl(job, id),
     );
+  }
+
+  if (job.type === "crawl_interview") {
+    const payload = job.payload as CrawlInterviewPayload;
+    return crawlSavedInterview(payload.digestId, job.userId, async (step, percent) => {
+      await updateWorkProgress(id, { step, percent });
+    });
   }
 
   if (job.type === "score_board") {

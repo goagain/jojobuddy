@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   ensureRootBootstrap: vi.fn(),
   ensureEntityIndexes: vi.fn(),
   ensureBoardIndexes: vi.fn(),
+  ensureInterviewIndexes: vi.fn(),
   ensureWorkIndexes: vi.fn(),
   ensureCraftIndexes: vi.fn(),
   ensureLlmIndexes: vi.fn(),
@@ -29,6 +30,10 @@ vi.mock("./entity-store", () => ({
 
 vi.mock("./board-store", () => ({
   ensureBoardIndexes: mocks.ensureBoardIndexes,
+}));
+
+vi.mock("./interview-store", () => ({
+  ensureInterviewIndexes: mocks.ensureInterviewIndexes,
 }));
 
 vi.mock("./work-store", () => ({
@@ -60,6 +65,7 @@ describe("runMigrations", () => {
     mocks.ensureRootBootstrap.mockReset();
     mocks.ensureEntityIndexes.mockReset();
     mocks.ensureBoardIndexes.mockReset();
+    mocks.ensureInterviewIndexes.mockReset();
     mocks.ensureWorkIndexes.mockReset();
     mocks.ensureCraftIndexes.mockReset();
     mocks.ensureLlmIndexes.mockReset();
@@ -70,6 +76,7 @@ describe("runMigrations", () => {
     mocks.ensureRootBootstrap.mockResolvedValue(undefined);
     mocks.ensureEntityIndexes.mockResolvedValue(undefined);
     mocks.ensureBoardIndexes.mockResolvedValue(undefined);
+    mocks.ensureInterviewIndexes.mockResolvedValue(undefined);
     mocks.ensureWorkIndexes.mockResolvedValue(undefined);
     mocks.ensureCraftIndexes.mockResolvedValue(undefined);
     mocks.ensureLlmIndexes.mockResolvedValue(undefined);
@@ -98,6 +105,9 @@ describe("runMigrations", () => {
     mocks.ensureBoardIndexes.mockImplementation(async () => {
       order.push("board");
     });
+    mocks.ensureInterviewIndexes.mockImplementation(async () => {
+      order.push("interview");
+    });
     mocks.ensureWorkIndexes.mockImplementation(async () => {
       order.push("work");
     });
@@ -115,7 +125,7 @@ describe("runMigrations", () => {
     await runMigrations();
 
     expect(order.slice(0, 3)).toEqual(["ping", "auth", "root"]);
-    expect(order).toEqual(expect.arrayContaining(["entity", "board", "work", "craft", "llm", "notifications"]));
+    expect(order).toEqual(expect.arrayContaining(["entity", "board", "interview", "work", "craft", "llm", "notifications"]));
     expect(mocks.closeMongo).not.toHaveBeenCalled();
   });
 

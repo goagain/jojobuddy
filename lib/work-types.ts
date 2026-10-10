@@ -9,6 +9,7 @@ export const WORK_JOB_TYPES = [
   "discover_board",
   "crawl_board",
   "score_board",
+  "crawl_interview",
 ] as const;
 
 export type WorkJobType = (typeof WORK_JOB_TYPES)[number];
@@ -69,6 +70,8 @@ export type ScoreBoardPayload = {
   profileId: string;
   resumeScoring?: boolean;
 };
+
+export type CrawlInterviewPayload = { digestId: string };
 
 export type CraftPayload = {
   profileId: string;

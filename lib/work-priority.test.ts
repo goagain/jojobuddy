@@ -14,7 +14,7 @@ describe("work priority", () => {
 
   it("does not let board work outrank an import or a craft", () => {
     const interactive = ["parse_url", "craft", "parse_resume", "analyze_job"] as const;
-    const background = ["discover_board", "crawl_board", "score_board", "refresh_jobs"] as const;
+    const background = ["discover_board", "crawl_board", "score_board", "refresh_jobs", "crawl_interview"] as const;
     for (const foreground of interactive) {
       for (const backgroundJob of background) {
         expect(workPriority(foreground)).toBeGreaterThan(workPriority(backgroundJob));
