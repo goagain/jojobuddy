@@ -45,6 +45,7 @@ export async function crawlSavedInterview(
       collected: result.threads.length,
       readableCount: result.readableCount,
       lockedCount: result.lockedCount,
+      account: result.account,
       summary,
       questions: result.questions,
       threads: result.threads,

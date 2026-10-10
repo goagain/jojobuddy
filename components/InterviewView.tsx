@@ -162,6 +162,21 @@ export function InterviewView({ digestId }: { digestId: string }) {
             </p>
             {digest.status === "crawling" ? <p className="mt-2 text-sm muted">{t("interviewsProgress")}</p> : null}
             {digest.error ? <p className="mt-2 text-sm font-bold text-rose-700">{digest.error}</p> : null}
+            <p className="mt-3 text-sm font-bold">
+              {digest.forumUsername
+                ? [
+                    t("interviewsReadAccount", { name: digest.forumUsername }),
+                    digest.forumCredits != null
+                      ? t("interviewsReadCredits", { count: digest.forumCredits })
+                      : "",
+                    digest.forumRice != null ? t("interviewsReadRice", { count: digest.forumRice }) : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : digest.hasCookie
+                  ? t("interviewsReadAccountUnknown")
+                  : t("interviewsReadAnonymous")}
+            </p>
             {digest.summary ? <p className="mt-3 text-sm leading-6">{digest.summary}</p> : null}
             {digest.hasCookie ? <p className="mt-2 text-xs muted">{t("interviewsCookieSaved")}</p> : null}
           </section>

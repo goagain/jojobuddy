@@ -1,5 +1,6 @@
 import type { QuestionKind, QuestionMention } from "./aggregate";
 import { aggregateQuestions, localSummary } from "./aggregate";
+import { parseForumAccount, type ForumAccount } from "./account";
 import { clusterMentions } from "./cluster";
 import { roundFromSlang, slangGloss } from "./slang";
 import {
@@ -19,6 +20,7 @@ import {
   sortOptionsRequest,
   threadListRequest,
   threadUrl,
+  userMeRequest,
   type FetchLike,
   type SortOption,
 } from "./onepoint";
@@ -50,6 +52,7 @@ export type InterviewCrawlResult = {
   summary: string;
   readableCount: number;
   lockedCount: number;
+  account: ForumAccount | null;
 };
 
 const PAGE_SIZE = 20;
@@ -73,6 +76,7 @@ export async function crawlInterviewPosts(input: {
   const pause = input.pause ?? (async () => delay(120));
   const onProgress = input.onProgress ?? (() => undefined);
 
+  const account = await loadForumAccount(fetchImpl, cookie);
   await onProgress(`Listing ${company} interview threads`, 8);
   const sortId = await loadSortId(fetchImpl, input.fid, cookie);
   const catalog = await loadCatalog(fetchImpl, sortId, cookie);
@@ -120,7 +124,18 @@ export async function crawlInterviewPosts(input: {
     }),
     readableCount,
     lockedCount,
+    account,
   };
+}
+
+async function loadForumAccount(fetchImpl: FetchLike, cookie: string): Promise<ForumAccount | null> {
+  if (!cookie) return null;
+  try {
+    const payload = await onePointFetch(fetchImpl, userMeRequest(), undefined, cookie);
+    return parseForumAccount(payload);
+  } catch {
+    return null;
+  }
 }
 
 export function mentionsForThread(input: {

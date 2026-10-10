@@ -259,6 +259,11 @@ export function forumSortRequest(fid: number): string {
 export const DEFAULT_INTERVIEW_FORUM = "https://www.1point3acres.com/home/forum/145";
 export const DEFAULT_INTERVIEW_FID = 145;
 
+export function userMeRequest(): string {
+  const input = encodeURIComponent(JSON.stringify({ "0": { json: null, meta: { values: ["undefined"] } } }));
+  return `${ONEPOINT_TRPC}/trpc/user.me?batch=1&input=${input}`;
+}
+
 export function companyTypeaheadRequest(query: string): string {
   const input = encodeURIComponent(JSON.stringify({ "0": { json: { q: query } } }));
   return `${ONEPOINT_TRPC}/trpc/company.typeahead?batch=1&input=${input}`;

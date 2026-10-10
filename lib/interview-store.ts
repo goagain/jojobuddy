@@ -19,6 +19,9 @@ export type InterviewDigest = {
   collected: number;
   readableCount: number;
   lockedCount: number;
+  forumUsername?: string;
+  forumCredits?: number;
+  forumRice?: number;
   summary: string;
   questions: FrequencyQuestion[];
   threads: CollectedThread[];
@@ -56,6 +59,9 @@ type InterviewDigestDoc = {
   collected: number;
   readableCount: number;
   lockedCount: number;
+  forumUsername?: string;
+  forumCredits?: number;
+  forumRice?: number;
   summary: string;
   questions: FrequencyQuestion[];
   threads: CollectedThread[];
@@ -91,6 +97,9 @@ function toPublic(doc: InterviewDigestDoc): InterviewDigest {
     collected: doc.collected ?? 0,
     readableCount: doc.readableCount ?? 0,
     lockedCount: doc.lockedCount ?? 0,
+    forumUsername: doc.forumUsername,
+    forumCredits: doc.forumCredits,
+    forumRice: doc.forumRice,
     summary: doc.summary ?? "",
     questions: doc.questions ?? [],
     threads: doc.threads ?? [],
@@ -234,6 +243,7 @@ export async function saveInterviewResult(
     collected: number;
     readableCount: number;
     lockedCount: number;
+    account: { username: string; credits?: number; rice?: number } | null;
     summary: string;
     questions: FrequencyQuestion[];
     threads: CollectedThread[];
@@ -242,24 +252,31 @@ export async function saveInterviewResult(
   const _id = objectId(id);
   if (!_id) return;
   const now = new Date();
-  await (await digests()).updateOne(
-    { _id, userId },
-    {
-      $set: {
-        status: "ready",
-        totalOnSite: result.totalOnSite,
-        collected: result.collected,
-        readableCount: result.readableCount,
-        lockedCount: result.lockedCount,
-        summary: result.summary,
-        questions: result.questions,
-        threads: result.threads,
-        updatedAt: now,
-        crawledAt: now,
-      },
-      $unset: { error: "" },
-    },
-  );
+  const unset: Record<string, ""> = { error: "" };
+  const set: Record<string, unknown> = {
+    status: "ready",
+    totalOnSite: result.totalOnSite,
+    collected: result.collected,
+    readableCount: result.readableCount,
+    lockedCount: result.lockedCount,
+    summary: result.summary,
+    questions: result.questions,
+    threads: result.threads,
+    updatedAt: now,
+    crawledAt: now,
+  };
+  if (result.account) {
+    set.forumUsername = result.account.username;
+    if (result.account.credits == null) unset.forumCredits = "";
+    else set.forumCredits = result.account.credits;
+    if (result.account.rice == null) unset.forumRice = "";
+    else set.forumRice = result.account.rice;
+  } else {
+    unset.forumUsername = "";
+    unset.forumCredits = "";
+    unset.forumRice = "";
+  }
+  await (await digests()).updateOne({ _id, userId }, { $set: set, $unset: unset });
 }
 
 export async function markInterviewFailed(id: string, userId: string, error: string) {
