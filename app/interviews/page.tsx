@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { useI18n } from "@/components/LocaleProvider";
+import { readResponseJson } from "@/lib/http-json";
 import type { InterviewDigestSummary } from "@/lib/interview-store";
 import { formatHealthHint, type MessageKey } from "@/lib/i18n";
 
@@ -19,27 +20,58 @@ export default function InterviewsPage() {
   const [hint, setHint] = useState(() => t("reading"));
   const [ok, setOk] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const crawling = digests.some((digest) => digest.status === "crawling");
+
+  const reload = useCallback(async () => {
+    const [health, list] = await Promise.all([
+      fetch("/api/health").then((response) => response.json()),
+      fetch("/api/interviews").then((response) => response.json()),
+    ]);
+    setOk(Boolean(health.ok));
+    setHint(formatHealthHint(t, health));
+    setDigests(list.digests ?? []);
+    if (list.error) setError(list.error);
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
-    async function reload() {
-      const [health, list] = await Promise.all([
-        fetch("/api/health").then((response) => response.json()),
-        fetch("/api/interviews").then((response) => response.json()),
-      ]);
-      if (cancelled) return;
-      setOk(Boolean(health.ok));
-      setHint(formatHealthHint(t, health));
-      setDigests(list.digests ?? []);
-      if (list.error) setError(list.error);
-    }
     reload().catch(() => {
       if (!cancelled) setError(t("interviewsReadFail"));
     });
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [reload, t]);
+
+  useEffect(() => {
+    if (!crawling) return;
+    const timer = window.setInterval(() => {
+      reload().catch(() => undefined);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [crawling, reload]);
+
+  async function recrawl(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/interviews/${id}/crawl`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const payload = await readResponseJson<{ error?: string }>(response, "Interviews API");
+      if (!response.ok) throw new Error(payload.error ?? t("interviewsReadFail"));
+      setDigests((current) =>
+        current.map((digest) => (digest.id === id ? { ...digest, status: "crawling", error: undefined } : digest)),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("interviewsReadFail"));
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <div className="min-h-screen px-4 py-5 md:px-8">
@@ -80,10 +112,20 @@ export default function InterviewsPage() {
                 ) : null}
                 {digest.error ? <p className="mt-1 text-sm font-bold text-rose-700">{digest.error}</p> : null}
               </div>
-              <div className="mt-auto">
+              <div className="mt-auto flex flex-wrap gap-2">
                 <Link href={`/interviews/${digest.id}`} className="btn btn-violet">
                   {t("interviewsOpen")}
                 </Link>
+                <button
+                  type="button"
+                  className="btn btn-gold"
+                  disabled={busyId === digest.id || digest.status === "crawling"}
+                  onClick={() => void recrawl(digest.id)}
+                >
+                  {busyId === digest.id || digest.status === "crawling"
+                    ? t("interviewsCollecting")
+                    : t("interviewsRecrawl")}
+                </button>
               </div>
             </article>
           ))}

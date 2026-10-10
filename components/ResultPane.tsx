@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import type { CraftResult } from "@/lib/types";
 import { useI18n } from "@/components/LocaleProvider";
+import { OpenInterviewButton } from "@/components/OpenInterviewButton";
 import { ScoreRadar } from "./ScoreRadar";
 import { buildResumeExportStem } from "@/lib/export-filename";
 import { extractOfficialJobNumber } from "@/lib/job-number";
@@ -223,6 +224,11 @@ export function ResultPane({
               <p className="text-[11px] font-bold text-black/60">
                 {result.usedModels.generator.providerName} / {result.usedModels.generator.label}
               </p>
+            ) : null}
+            {boundContext?.jobCompany ? (
+              <div className="mt-2">
+                <OpenInterviewButton company={boundContext.jobCompany} />
+              </div>
             ) : null}
             {result && boundContext ? (
               <p className="mt-1 text-[11px] font-bold text-black/60">

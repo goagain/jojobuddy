@@ -1,5 +1,6 @@
 import type { QuestionKind, QuestionMention } from "./aggregate";
 import { aggregateQuestions, localSummary } from "./aggregate";
+import { roundFromSlang, slangGloss } from "./slang";
 import {
   bbcodeToText,
   fieldsFromOptions,
@@ -54,6 +55,7 @@ const PAGE_SIZE = 20;
 
 export async function crawlInterviewPosts(input: {
   company: string;
+  companySlug?: string;
   fid: number;
   limit: number;
   cookie?: string;
@@ -63,6 +65,7 @@ export async function crawlInterviewPosts(input: {
   onProgress?: (step: string, percent: number) => Promise<void> | void;
 }): Promise<InterviewCrawlResult> {
   const company = input.company.trim();
+  const companySlug = (input.companySlug || company).trim();
   const limit = Math.min(80, Math.max(1, input.limit));
   const fetchImpl = input.fetchImpl ?? fetch;
   const cookie = input.cookie ?? "";
@@ -75,7 +78,7 @@ export async function crawlInterviewPosts(input: {
   const listed = await listCompanyThreads(fetchImpl, {
     fid: input.fid,
     sortId,
-    company,
+    company: companySlug,
     limit,
     cookie,
     pause,
@@ -211,20 +214,27 @@ async function readThread(
   const locked = isHiddenPost(detail.message);
   const text = locked ? "" : bbcodeToText(detail.message);
   const title = detail.subject || fallbackTitle;
-  const leetcode = unique([...leetcodeFromFields(fields), ...leetcodeFromText(locked ? "" : `${title}\n${text}`)]);
+  const sourceText = locked ? title : `${title}\n${text}`;
+  const leetcode = unique([...leetcodeFromFields(fields), ...leetcodeFromText(locked ? "" : sourceText)]);
   const thread: CollectedThread = {
     tid,
     title,
     url: threadUrl(tid),
     postedAt: toIso(detail.dateline || fallbackDateline),
     locked,
-    interviewType: fields.interviewtype,
+    interviewType: fields.interviewtype || roundFromSlang(sourceText),
     difficulty: fields.difficulty,
     category: fields.jobcategory,
     leetcode,
     excerpt: text ? text.slice(0, 500) : undefined,
   };
-  const meta = [thread.interviewType, thread.difficulty, thread.category, leetcode.map((id) => `LeetCode ${id}`).join(", ")]
+  const meta = [
+    thread.interviewType,
+    thread.difficulty,
+    thread.category,
+    leetcode.map((id) => `LeetCode ${id}`).join(", "),
+    slangGloss(sourceText),
+  ]
     .filter(Boolean)
     .join(" · ");
   return {

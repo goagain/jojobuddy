@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { OpenInterviewButton } from "@/components/OpenInterviewButton";
 import { useI18n } from "@/components/LocaleProvider";
 import type { Job } from "@/lib/entities";
 import { resolveJobFields } from "@/lib/job-fields";
@@ -212,6 +213,7 @@ export function JobEditor({ jobId }: { jobId?: string }) {
               {t("workbenchGoWithJob")}
             </Link>
           ) : null}
+          <OpenInterviewButton company={form.company} />
           <button type="button" className="btn btn-gold" disabled={Boolean(busy)} onClick={save}>
             {busy === "save" ? t("saving") : t("saveJob")}
           </button>

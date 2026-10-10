@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { useI18n } from "@/components/LocaleProvider";
 import { readResponseJson } from "@/lib/http-json";
@@ -13,6 +13,8 @@ export default function NewInterviewPage() {
   const { t } = useI18n();
   const router = useRouter();
   const [company, setCompany] = useState("");
+  const [companySlug, setCompanySlug] = useState("");
+  const [suggestions, setSuggestions] = useState<{ identifier: string; name: string }[]>([]);
   const [forumUrl, setForumUrl] = useState(DEFAULT_FORUM);
   const [limit, setLimit] = useState(40);
   const [cookie, setCookie] = useState("");
@@ -29,7 +31,8 @@ export default function NewInterviewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           company,
-          forumUrl,
+          companySlug: companySlug || undefined,
+          forumUrl: forumUrl.trim() || undefined,
           limit,
           cookie: cookie.trim() || undefined,
         }),
@@ -46,6 +49,23 @@ export default function NewInterviewPage() {
     }
   }
 
+  useEffect(() => {
+    const query = company.trim();
+    if (companySlug || query.length < 1) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void fetch(`/api/interviews/companies?q=${encodeURIComponent(query)}`)
+        .then((response) => response.json())
+        .then((payload: { companies?: { identifier: string; name: string }[] }) => {
+          setSuggestions(payload.companies ?? []);
+        })
+        .catch(() => setSuggestions([]));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [company, companySlug]);
+
   return (
     <div className="min-h-screen px-4 py-5 md:px-8">
       <AppHeader />
@@ -61,18 +81,42 @@ export default function NewInterviewPage() {
             required
             value={company}
             placeholder={t("interviewsCompanyPlaceholder")}
-            onChange={(event) => setCompany(event.target.value)}
+            onChange={(event) => {
+              setCompany(event.target.value);
+              setCompanySlug("");
+            }}
           />
+          <span className="text-xs muted">{t("interviewsCompanyHint")}</span>
+          {companySlug ? <span className="text-xs font-bold">#{companySlug}</span> : null}
+          {suggestions.length > 0 ? (
+            <span className="mt-1 flex flex-wrap gap-2">
+              {suggestions.map((hit) => (
+                <button
+                  key={hit.identifier}
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setCompany(hit.name);
+                    setCompanySlug(hit.identifier);
+                    setSuggestions([]);
+                  }}
+                >
+                  {hit.name}
+                  <span className="ml-1 text-xs muted">#{hit.identifier}</span>
+                </button>
+              ))}
+            </span>
+          ) : null}
         </label>
         <label className="field-label">
           <span>{t("interviewsForumUrl")}</span>
           <input
             type="url"
-            required
             value={forumUrl}
             placeholder={t("interviewsForumPlaceholder")}
             onChange={(event) => setForumUrl(event.target.value)}
           />
+          <span className="text-xs muted">{t("interviewsForumOptional")}</span>
         </label>
         <label className="field-label">
           <span>{t("interviewsLimit")}</span>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { OpenInterviewButton } from "@/components/OpenInterviewButton";
 import { useI18n } from "@/components/LocaleProvider";
 import type { JobSummary } from "@/lib/entities";
 import { formatAddedAt, matchesRecentWindow, type RecentWindow } from "@/lib/format-date";
@@ -340,6 +341,7 @@ export default function JobsPage() {
                 <Link href={`/jobs/${job.id}`} className="btn btn-gold">
                   {t("edit")}
                 </Link>
+                <OpenInterviewButton company={job.company} />
                 <button type="button" className="btn" onClick={() => void remove(job.id)}>
                   {t("delete")}
                 </button>

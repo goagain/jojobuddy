@@ -231,7 +231,12 @@ export async function onePointFetch(
   const host = new URL(url).hostname;
   if (!API_HOSTS.has(host)) throw new Error("Refusing to call a non-1point3acres host");
   const headers = new Headers(init?.headers);
-  headers.set("Accept", "application/json");
+  headers.set("Accept", "application/json, text/plain, */*");
+  headers.set("Referer", "https://www.1point3acres.com/home/forum/145");
+  headers.set(
+    "User-Agent",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+  );
   if (init?.body) headers.set("Content-Type", "application/json");
   if (cookie) headers.set("Cookie", cookie);
   const response = await fetchImpl(url, { ...init, headers });
@@ -249,6 +254,14 @@ export async function onePointFetch(
 export function forumSortRequest(fid: number): string {
   const input = encodeURIComponent(JSON.stringify({ json: { fid } }));
   return `${ONEPOINT_TRPC}/trpc/forum.get?input=${input}`;
+}
+
+export const DEFAULT_INTERVIEW_FORUM = "https://www.1point3acres.com/home/forum/145";
+export const DEFAULT_INTERVIEW_FID = 145;
+
+export function companyTypeaheadRequest(query: string): string {
+  const input = encodeURIComponent(JSON.stringify({ "0": { json: { q: query } } }));
+  return `${ONEPOINT_TRPC}/trpc/company.typeahead?batch=1&input=${input}`;
 }
 
 export function sortOptionsRequest(sortId: number): string {

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { OpenInterviewButton } from "@/components/OpenInterviewButton";
 import { useI18n } from "@/components/LocaleProvider";
 import type { SourceRecord } from "@/lib/entities";
 import { formatHealthHint } from "@/lib/i18n";
@@ -441,20 +442,23 @@ export function ProfileEditor({ profileId }: { profileId?: string }) {
                 </button>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <label className="field-label">
-                  {t("company")}
-                  <input
-                    value={experience.company}
-                    onChange={(event) =>
-                      setResume((prev) => ({
-                        ...prev,
-                        experiences: prev.experiences.map((item) =>
-                          item.id === experience.id ? { ...item, company: event.target.value } : item,
-                        ),
-                      }))
-                    }
-                  />
-                </label>
+                <div>
+                  <label className="field-label">
+                    {t("company")}
+                    <input
+                      value={experience.company}
+                      onChange={(event) =>
+                        setResume((prev) => ({
+                          ...prev,
+                          experiences: prev.experiences.map((item) =>
+                            item.id === experience.id ? { ...item, company: event.target.value } : item,
+                          ),
+                        }))
+                      }
+                    />
+                  </label>
+                  <OpenInterviewButton company={experience.company} className="btn mt-2" />
+                </div>
                 <label className="field-label">
                   {t("title")}
                   <input

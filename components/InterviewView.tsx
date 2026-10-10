@@ -78,18 +78,22 @@ export function InterviewView({ digestId }: { digestId: string }) {
     };
   }, [t, digest?.status]);
 
-  async function recrawl(event: React.FormEvent) {
-    event.preventDefault();
+  async function recrawl(event?: React.FormEvent) {
+    event?.preventDefault();
     setBusy(true);
     setError(null);
     try {
       const response = await fetch(`/api/interviews/${digestId}/crawl`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cookie: cookie.trim() || undefined,
-          clearCookie,
-        }),
+        body: JSON.stringify(
+          event
+            ? {
+                cookie: cookie.trim() || undefined,
+                clearCookie,
+              }
+            : {},
+        ),
       });
       const payload = await readResponseJson<{ error?: string }>(response, "Interviews API");
       if (!response.ok) throw new Error(payload.error ?? t("interviewsReadFail"));
@@ -126,9 +130,19 @@ export function InterviewView({ digestId }: { digestId: string }) {
             </p>
           ) : null}
         </div>
-        <Link href="/interviews" className="btn">
-          {t("interviewsBack")}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-gold"
+            disabled={!digest || busy || digest.status === "crawling"}
+            onClick={() => void recrawl()}
+          >
+            {busy || digest?.status === "crawling" ? t("interviewsCollecting") : t("interviewsRecrawl")}
+          </button>
+          <Link href="/interviews" className="btn">
+            {t("interviewsBack")}
+          </Link>
+        </div>
       </div>
 
       {error ? <p className="mb-3 text-sm font-bold text-rose-700">{error}</p> : null}

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createInterviewDigest, listInterviewDigests, markInterviewFailed } from "@/lib/interview-store";
-import { parseForumTarget, sanitizeCookie } from "@/lib/interview/onepoint";
+import { resolveCompany } from "@/lib/interview/companies";
+import { DEFAULT_INTERVIEW_FID, DEFAULT_INTERVIEW_FORUM, parseForumTarget, sanitizeCookie } from "@/lib/interview/onepoint";
 import { requireUser } from "@/lib/require-user";
 import { enqueueWork, isWorkerOnline } from "@/lib/work-store";
 
@@ -9,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 const createSchema = z.object({
   company: z.string().trim().min(1).max(80),
-  forumUrl: z.string().trim().min(1),
+  companySlug: z.string().trim().min(1).max(80).optional(),
+  forumUrl: z.string().trim().optional(),
   limit: z.number().int().min(1).max(80).optional(),
   cookie: z.string().optional(),
 });
@@ -31,10 +33,16 @@ export async function POST(request: Request) {
   let digestId = "";
   try {
     const body = createSchema.parse(await request.json());
-    const forum = parseForumTarget(body.forumUrl);
+    const forum = body.forumUrl
+      ? parseForumTarget(body.forumUrl)
+      : { fid: DEFAULT_INTERVIEW_FID, url: DEFAULT_INTERVIEW_FORUM };
+    const resolved = body.companySlug
+      ? { identifier: body.companySlug, name: body.company }
+      : await resolveCompany(fetch, body.company);
     const cookie = body.cookie ? sanitizeCookie(body.cookie) : "";
     const digest = await createInterviewDigest(auth.user.id, {
-      company: body.company,
+      company: resolved.name,
+      companySlug: resolved.identifier,
       forumUrl: forum.url,
       fid: forum.fid,
       limit: body.limit ?? 40,

@@ -20,6 +20,7 @@ export async function crawlSavedInterview(
     const runtime = await pickParseRuntime(userId);
     const result = await crawlInterviewPosts({
       company: digest.company,
+      companySlug: digest.companySlug || digest.company,
       fid: digest.fid,
       limit: digest.limit,
       cookie: digest.cookie,

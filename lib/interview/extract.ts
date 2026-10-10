@@ -4,6 +4,7 @@ import { chat, extractJsonObject } from "../llm";
 import type { LlmRuntime } from "../llm-types";
 import type { FrequencyQuestion } from "./aggregate";
 import { isQuestionKind, type ReadablePost } from "./crawl";
+import { slangGlossary } from "./slang";
 
 const extractedSchema = z.object({
   questions: z
@@ -47,8 +48,9 @@ export async function narrativeSummary(
     messages: [
       {
         role: "system",
-        content:
-          "你在总结一亩三分地面经。只用给定的频次列表写 4 到 6 句中文，点出最高频的题目和题型。不要补充列表里没有的题，不要写客套话。",
+        content: `你在总结一亩三分地面经。只用给定的频次列表写 4 到 6 句中文，点出最高频的题目和题型。不要补充列表里没有的题，不要写客套话。谐音和黑话用通用说法：昂赛、现场表演都写成 Onsite，店面、电面都写成电面。
+
+${slangGlossary()}`,
       },
       {
         role: "user",
@@ -78,13 +80,19 @@ async function extractBatch(runtime: LlmRuntime, posts: ReadablePost[]): Promise
         role: "system",
         content: `You extract interview questions from 1point3acres posts. Output JSON only.
 
+The forum writes the same thing many ways. Treat every alias below as its meaning. Do not emit the slang itself as a question. In question text, say Onsite / Phone screen / System design instead of 昂赛, 现场表演, or 店面.
+
+${slangGlossary()}
+
 Rules:
 - Include a question only when the post explicitly says it was asked, or names a coding problem (description or LeetCode id).
-- Do not invent questions from a company name or a round name.
+- Do not invent questions from a company name, a round name, or 求米.
+- 挂经 only means the candidate did not pass. Extract every question that post says was asked.
+- 系统设计 or SD → kind system_design. 行为面 or BQ → kind behavioral. A named coding problem → kind coding.
 - Echo the post tid.
 - kind is coding, system_design, behavioral, or other.
 - leetcode is digits only when a LeetCode number is stated, otherwise null.
-- text is one concise line in the post's language.
+- text is one concise line. Use the standard round name, not the homophone.
 
 {"questions":[{"tid":1192472,"text":"LRU Cache","kind":"coding","leetcode":"146"}]}`,
       },

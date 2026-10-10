@@ -9,6 +9,7 @@ export type InterviewStatus = "crawling" | "ready" | "failed";
 export type InterviewDigest = {
   id: string;
   company: string;
+  companySlug?: string;
   forumUrl: string;
   fid: number;
   limit: number;
@@ -45,6 +46,7 @@ type InterviewDigestDoc = {
   _id?: ObjectId;
   userId: string;
   company: string;
+  companySlug?: string;
   forumUrl: string;
   fid: number;
   limit: number;
@@ -79,6 +81,7 @@ function toPublic(doc: InterviewDigestDoc): InterviewDigest {
   return {
     id: doc._id.toHexString(),
     company: doc.company,
+    companySlug: doc.companySlug,
     forumUrl: doc.forumUrl,
     fid: doc.fid,
     limit: doc.limit,
@@ -106,17 +109,19 @@ export async function ensureInterviewIndexes() {
   return runOnce("interview-indexes", async () => {
     const col = await digests();
     await col.createIndex({ userId: 1, updatedAt: -1 });
+    await col.createIndex({ userId: 1, fid: 1, companySlug: 1 });
   });
 }
 
 export async function createInterviewDigest(
   userId: string,
-  input: { company: string; forumUrl: string; fid: number; limit: number; cookie?: string },
+  input: { company: string; companySlug?: string; forumUrl: string; fid: number; limit: number; cookie?: string },
 ): Promise<InterviewDigest> {
   const now = new Date();
   const doc: InterviewDigestDoc = {
     userId,
     company: input.company,
+    companySlug: input.companySlug || input.company.trim().toLowerCase(),
     forumUrl: input.forumUrl,
     fid: input.fid,
     limit: input.limit,
@@ -153,6 +158,29 @@ export async function listInterviewDigests(userId: string): Promise<InterviewDig
     updatedAt: iso(doc.updatedAt),
     crawledAt: doc.crawledAt ? iso(doc.crawledAt) : undefined,
   }));
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export async function findInterviewDigest(
+  userId: string,
+  input: { companySlug: string; company: string; query: string; fid: number },
+): Promise<InterviewDigest | null> {
+  const names = [...new Set([input.company, input.query].map((value) => value.trim()).filter(Boolean))];
+  const doc = await (await digests()).findOne(
+    {
+      userId,
+      fid: input.fid,
+      $or: [
+        { companySlug: input.companySlug },
+        ...names.map((name) => ({ company: { $regex: `^${escapeRegex(name)}$`, $options: "i" } })),
+      ],
+    },
+    { sort: { updatedAt: -1 } },
+  );
+  return doc ? toPublic(doc) : null;
 }
 
 export async function getInterviewDigest(id: string, userId: string): Promise<InterviewDigest | null> {
