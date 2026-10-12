@@ -37,18 +37,26 @@ describe("cluster interview questions", () => {
     expect(questions.find((question) => question.text.includes("find_dups"))?.count).toBe(1);
   });
 
-  it("merges behavioral writeups and RAG design writeups without folding coding into them", () => {
+  it("keeps distinct behavioral prompts apart and still merges RAG design", () => {
     const questions = aggregateQuestions(
       clusterMentions([
-        mention(1, "Behavioral: project deep dives aligned to company values", "behavioral"),
-        mention(2, "Onsite: Harvey Values behavioral questions", "behavioral"),
-        mention(3, "Project deep dive and behavioral (BQ) questions", "behavioral"),
-        mention(4, "Design a law-firm memo Q&A AI agent (RAG + LLM + web crawling)", "system_design"),
-        mention(5, "System design: design a RAG pipeline including chunking", "system_design"),
-        mention(6, "Coding: implement embedding and retrieval using cosine similarity"),
+        mention(1, "Tell me about a conflict with a teammate", "behavioral"),
+        mention(2, "Why do you want to join this company", "behavioral"),
+        mention(3, "Deep dive on the recommendation project you owned", "behavioral"),
+        mention(4, "Behavioral questions", "behavioral"),
+        mention(5, "项目深挖", "behavioral"),
+        mention(6, "Design a law-firm memo Q&A AI agent (RAG + LLM + web crawling)", "system_design"),
+        mention(7, "System design: design a RAG pipeline including chunking", "system_design"),
+        mention(8, "Coding: implement embedding and retrieval using cosine similarity"),
       ]),
     );
-    expect(questions.find((question) => question.kind === "behavioral")?.count).toBe(3);
+    const behavioral = questions.filter((question) => question.kind === "behavioral");
+    expect(behavioral.map((question) => question.text).sort()).toEqual([
+      "Deep dive on the recommendation project you owned",
+      "Tell me about a conflict with a teammate",
+      "Why do you want to join this company",
+    ]);
+    expect(behavioral.every((question) => question.count === 1)).toBe(true);
     expect(questions.find((question) => question.text.includes("RAG"))?.count).toBe(2);
     expect(questions.find((question) => question.text.includes("embedding"))?.count).toBe(1);
   });

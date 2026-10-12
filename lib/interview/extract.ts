@@ -39,16 +39,26 @@ export async function narrativeSummary(
   company: string,
   questions: FrequencyQuestion[],
 ): Promise<string> {
-  const list = questions
-    .slice(0, 12)
-    .map((question) => `- ${question.count} posts: ${question.text}`)
-    .join("\n");
+  const groups = [
+    ["Coding", "coding"],
+    ["BQ", "behavioral"],
+    ["System Design", "system_design"],
+    ["Other", "other"],
+  ] as const;
+  const list = groups
+    .map(([label, kind]) => {
+      const rows = questions.filter((question) => question.kind === kind).slice(0, 6);
+      if (rows.length === 0) return "";
+      return `${label}\n${rows.map((question) => `- ${question.count} posts: ${question.text}`).join("\n")}`;
+    })
+    .filter(Boolean)
+    .join("\n\n");
   const raw = await chat({
     runtime,
     messages: [
       {
         role: "system",
-        content: `你在总结一亩三分地面经。只用给定的频次列表写 4 到 6 句中文，点出最高频的题目和题型。不要补充列表里没有的题，不要写客套话。谐音和黑话用通用说法：昂赛、现场表演都写成 Onsite，店面、电面都写成电面。
+        content: `你在总结一亩三分地面经。只用给定的频次列表写 4 到 6 句中文，按 Coding、BQ、System Design 三类分别点出该类最高频的题目。不要把不同的 BQ 收成一条「行为面」。不要补充列表里没有的题，不要写客套话。谐音和黑话用通用说法：昂赛、现场表演都写成 Onsite，店面、电面都写成电面。
 
 ${slangGlossary()}`,
       },
@@ -88,12 +98,14 @@ Rules:
 - Include a question only when the post explicitly says it was asked, or names a coding problem (description or LeetCode id).
 - Do not invent questions from a company name, a round name, or 求米.
 - 挂经 only means the candidate did not pass. Extract every question that post says was asked.
-- 系统设计 or SD → kind system_design. 行为面 or BQ → kind behavioral. A named coding problem → kind coding.
+- 系统设计 or SD → kind system_design. A named coding problem → kind coding.
+- Behavioral is not one question. Emit each distinct prompt separately with kind behavioral: a conflict, a failure, leadership, ambiguity, why this company, or a named project deep-dive. Name the actual prompt. Do not title it 行为面, BQ, or 项目深挖.
+- If a post only says the round was behavioral, BQ, or 项目深挖 and does not name the prompts, emit nothing for that round.
 - Echo the post tid.
 - kind is coding, system_design, behavioral, or other.
 - leetcode is digits only when a LeetCode number is stated, otherwise null.
-- text is one short canonical problem name. Do not put the round (Phone screen, Onsite, 店面, 昂赛) in the text.
-- Multi-part follow-ups of one problem are one question. Example: spreadsheet set_cell, formulas, and cycle detection are one Spreadsheet question, not three.
+- text is one short canonical problem name. Do not put the round (Phone screen, Onsite, 店面, 昂赛, 行为面) in the text.
+- Multi-part follow-ups of one coding or system-design problem are one question. Example: spreadsheet set_cell, formulas, and cycle detection are one Spreadsheet question, not three. Different behavioral prompts stay separate.
 
 {"questions":[{"tid":1192472,"text":"LRU Cache","kind":"coding","leetcode":"146"}]}`,
       },

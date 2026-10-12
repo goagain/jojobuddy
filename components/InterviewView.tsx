@@ -24,6 +24,8 @@ const KIND_KEY: Record<QuestionKind, MessageKey> = {
   other: "interviewsKindOther",
 };
 
+const QUESTION_GROUPS: QuestionKind[] = ["coding", "behavioral", "system_design", "other"];
+
 export function InterviewView({ digestId }: { digestId: string }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -186,41 +188,49 @@ export function InterviewView({ digestId }: { digestId: string }) {
             {digest.questions.length === 0 ? (
               <p className="mt-2 text-sm muted">{t("interviewsNoQuestions")}</p>
             ) : (
-              <ol className="mt-3 grid gap-3">
-                {digest.questions.map((question) => (
-                  <li key={`${question.leetcode ?? ""}:${question.text}`} className="grid gap-1">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="font-bold">
-                        <span className="mr-2 text-[#5b45d6]">{question.count}</span>
-                        {question.text}
-                      </p>
-                      <span className="text-xs font-black tracking-wide kicker-gold">{t(KIND_KEY[question.kind])}</span>
+              <div className="grid gap-6">
+                {QUESTION_GROUPS.map((kind) => {
+                  const questions = digest.questions.filter((question) => (question.kind || "other") === kind);
+                  if (questions.length === 0) return null;
+                  return (
+                    <div key={kind}>
+                      <h3 className="text-sm font-black tracking-widest kicker-gold">{t(KIND_KEY[kind])}</h3>
+                      <ol className="mt-3 grid gap-3">
+                        {questions.map((question) => (
+                          <li key={`${question.leetcode ?? ""}:${question.text}`} className="grid gap-1">
+                            <p className="font-bold">
+                              <span className="mr-2 text-[#5b45d6]">{question.count}</span>
+                              {question.text}
+                            </p>
+                            <div className="h-2 border border-[#c9bdf0] bg-white">
+                              <div
+                                className="h-full bg-[#f6e7b8]"
+                                style={{ width: `${Math.max(8, Math.round((question.count / topCount) * 100))}%` }}
+                              />
+                            </div>
+                            <p className="text-xs muted">
+                              {question.sources.map((source, index) => {
+                                const thread = digest.threads.find((item) => item.tid === source.tid);
+                                return (
+                                  <span key={source.tid}>
+                                    {index > 0 ? " · " : ""}
+                                    <a href={thread?.url} target="_blank" rel="noopener noreferrer" className="underline">
+                                      {source.title}
+                                    </a>
+                                    {thread?.locked ? (
+                                      <span className="tag-alert ml-1">{t("interviewsLockedBadge")}</span>
+                                    ) : null}
+                                  </span>
+                                );
+                              })}
+                            </p>
+                          </li>
+                        ))}
+                      </ol>
                     </div>
-                    <div className="h-2 border border-[#c9bdf0] bg-white">
-                      <div
-                        className="h-full bg-[#f6e7b8]"
-                        style={{ width: `${Math.max(8, Math.round((question.count / topCount) * 100))}%` }}
-                      />
-                    </div>
-                    <p className="text-xs muted">
-                      {question.sources.map((source, index) => {
-                        const thread = digest.threads.find((item) => item.tid === source.tid);
-                        return (
-                          <span key={source.tid}>
-                            {index > 0 ? " · " : ""}
-                            <a href={thread?.url} target="_blank" rel="noopener noreferrer" className="underline">
-                              {source.title}
-                            </a>
-                            {thread?.locked ? (
-                              <span className="tag-alert ml-1">{t("interviewsLockedBadge")}</span>
-                            ) : null}
-                          </span>
-                        );
-                      })}
-                    </p>
-                  </li>
-                ))}
-              </ol>
+                  );
+                })}
+              </div>
             )}
           </section>
 

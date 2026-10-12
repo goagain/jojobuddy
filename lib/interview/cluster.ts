@@ -67,12 +67,6 @@ const FAMILIES: Family[] = [
     test: (text, kind) =>
       kind !== "coding" && /rag|retrieval augmented|law\s*firm memo|memo q/.test(text),
   },
-  {
-    id: "behavioral",
-    label: "行为面 / 项目深挖",
-    kind: "behavioral",
-    test: (text) => /behavioral|deep\s*dive|行为面|\bbq\b|core values|harvey values|项目深挖/.test(text),
-  },
 ];
 
 const STOP = new Set([
@@ -85,6 +79,11 @@ const STOP = new Set([
 ]);
 
 export function clusterMentions(mentions: QuestionMention[]): QuestionMention[] {
+  const specific = mentions.filter((mention) => !isGenericBehavioral(mention.text));
+  return labelClusters(specific);
+}
+
+function labelClusters(mentions: QuestionMention[]): QuestionMention[] {
   const families = mentions.map((mention) => (mention.leetcode ? null : matchFamily(mention)));
   const parent = mentions.map((_, index) => index);
 
@@ -143,6 +142,17 @@ export function clusterMentions(mentions: QuestionMention[]): QuestionMention[] 
     if (!label) return mention;
     return { ...mention, text: label.text, kind: label.kind };
   });
+}
+
+function isGenericBehavioral(text: string): boolean {
+  const normalized = loosen(text)
+    .replace(/\b(onsite|phone|screen|virtual|round|interview)\b/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return /^(?:behavioral|behavioural|bq|行为面|项目深挖|deep dive|project deep dive)(?: questions| question| 问题)?$/.test(
+    normalized,
+  );
 }
 
 function matchFamily(mention: QuestionMention): Family | null {
