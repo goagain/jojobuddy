@@ -56,6 +56,7 @@ export type InterviewCrawlResult = {
 };
 
 const PAGE_SIZE = 20;
+const REQUEST_GAP_MS = 800;
 
 export async function crawlInterviewPosts(input: {
   company: string;
@@ -73,7 +74,7 @@ export async function crawlInterviewPosts(input: {
   const limit = Math.min(80, Math.max(1, input.limit));
   const fetchImpl = input.fetchImpl ?? fetch;
   const cookie = input.cookie ?? "";
-  const pause = input.pause ?? (async () => delay(120));
+  const pause = input.pause ?? (async () => delay(REQUEST_GAP_MS));
   const onProgress = input.onProgress ?? (() => undefined);
 
   const account = await loadForumAccount(fetchImpl, cookie);
@@ -98,7 +99,7 @@ export async function crawlInterviewPosts(input: {
     if (!item) continue;
     await onProgress(`Reading thread ${index + 1}/${listed.threads.length}`, 15 + Math.round((index / listed.threads.length) * 65));
     await pause();
-    const collected = await readThread(fetchImpl, item.tid, item.subject, item.dateline, catalog, cookie);
+    const collected = await readThread(fetchImpl, item.tid, item.subject, item.dateline, catalog, cookie, pause);
     threads.push(collected.thread);
     mentions.push(...collected.mentions);
     if (collected.readable) readable.push(collected.readable);
@@ -217,9 +218,11 @@ async function readThread(
   fallbackDateline: number,
   catalog: SortOption[],
   cookie: string,
+  pause: () => Promise<void>,
 ): Promise<{ thread: CollectedThread; mentions: QuestionMention[]; readable?: ReadablePost }> {
   const detailPayload = await onePointFetch(fetchImpl, `https://api.1point3acres.com/api/v3/threads/${tid}`, undefined, cookie);
   const detail = parseThreadDetail(detailPayload);
+  await pause();
   const optionPayload = await onePointFetch(
     fetchImpl,
     `https://api.1point3acres.com/api/threads/${tid}/options`,

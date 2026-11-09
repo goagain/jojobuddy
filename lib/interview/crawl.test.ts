@@ -7,8 +7,10 @@ import {
   interviewSortId,
   isHiddenPost,
   leetcodeFromFields,
+  onePointFetch,
   parseForumTarget,
   parseThreadDetail,
+  rateLimitDelay,
   sanitizeCookie,
   type SortOption,
 } from "@/lib/interview/onepoint";
@@ -80,6 +82,74 @@ describe("interview question frequency", () => {
 
   it("explains when every post is locked", () => {
     expect(localSummary("Harvey", [], { collected: 4, readable: 0, locked: 4 })).toContain("积分隐藏");
+  });
+});
+
+describe("1point3acres rate limit", () => {
+  it("waits and retries when the forum says the crawl is too fast", async () => {
+    const waits: number[] = [];
+    let calls = 0;
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ errno: -1, msg: "操作过快，请稍后再试" }), { status: 429 });
+      }
+      return new Response(JSON.stringify({ errno: 0, ok: true }), { status: 200 });
+    };
+
+    const payload = await onePointFetch(fetchImpl, "https://api.1point3acres.com/api/v3/threads/1", undefined, "a=b", {
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+    });
+
+    expect(calls).toBe(2);
+    expect(waits).toEqual([rateLimitDelay(0)]);
+    expect(payload).toMatchObject({ errno: 0 });
+  });
+
+  it("retries a 200 body that still says to slow down", async () => {
+    let calls = 0;
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ errno: -1, msg: "操作过快，请稍后再试" }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ errno: 0, thread: { tid: 1 } }), { status: 200 });
+    };
+
+    const payload = await onePointFetch(fetchImpl, "https://api.1point3acres.com/api/v3/threads/1", undefined, "", {
+      sleep: async () => undefined,
+    });
+
+    expect(calls).toBe(2);
+    expect(payload).toMatchObject({ errno: 0 });
+  });
+
+  it("stops after the retries are used up and leaves other errors alone", async () => {
+    let limited = 0;
+    const limitedFetch: typeof fetch = async () => {
+      limited += 1;
+      return new Response(JSON.stringify({ errno: -1, msg: "操作过快，请稍后再试" }), { status: 429 });
+    };
+    await expect(
+      onePointFetch(limitedFetch, "https://api.1point3acres.com/api/v3/threads/1", undefined, "", {
+        sleep: async () => undefined,
+      }),
+    ).rejects.toThrow(/failed \(429\)/);
+    expect(limited).toBe(4);
+
+    let other = 0;
+    const otherFetch: typeof fetch = async () => {
+      other += 1;
+      return new Response("nope", { status: 500 });
+    };
+    await expect(
+      onePointFetch(otherFetch, "https://api.1point3acres.com/api/v3/threads/1", undefined, "", {
+        sleep: async () => undefined,
+      }),
+    ).rejects.toThrow(/failed \(500\)/);
+    expect(other).toBe(1);
   });
 });
 

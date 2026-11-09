@@ -238,11 +238,19 @@ export function parseThreadOptions(payload: unknown): ThreadOptionValue[] {
   });
 }
 
+const RATE_LIMIT_ATTEMPTS = 4;
+const RATE_LIMIT_TEXT = /操作过快/;
+
+export function rateLimitDelay(attempt: number): number {
+  return Math.min(8_000, 2_000 * 2 ** attempt);
+}
+
 export async function onePointFetch(
   fetchImpl: FetchLike,
   url: string,
   init: RequestInit | undefined,
   cookie: string,
+  options?: { sleep?: (ms: number) => Promise<void> },
 ): Promise<unknown> {
   const host = new URL(url).hostname;
   if (!API_HOSTS.has(host)) throw new Error("Refusing to call a non-1point3acres host");
@@ -255,16 +263,51 @@ export async function onePointFetch(
   );
   if (init?.body) headers.set("Content-Type", "application/json");
   if (cookie) headers.set("Cookie", cookie);
-  const response = await fetchImpl(url, { ...init, headers });
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(`1point3acres failed (${response.status}): ${text.slice(0, 180)}`);
+  const sleep = options?.sleep ?? delay;
+  let lastStatus = 429;
+  let lastText = "";
+  for (let attempt = 0; attempt < RATE_LIMIT_ATTEMPTS; attempt += 1) {
+    const response = await fetchImpl(url, { ...init, headers });
+    const text = await response.text();
+    lastStatus = response.status;
+    lastText = text;
+    const payload = parseJson(text);
+    if (isRateLimited(response.status, text, payload)) {
+      if (attempt < RATE_LIMIT_ATTEMPTS - 1) {
+        await sleep(rateLimitDelay(attempt));
+        continue;
+      }
+      const status = response.status === 200 ? 429 : response.status;
+      throw new Error(`1point3acres failed (${status}): ${text.slice(0, 180)}`);
+    }
+    if (!response.ok) {
+      throw new Error(`1point3acres failed (${response.status}): ${text.slice(0, 180)}`);
+    }
+    if (payload === undefined) throw new Error("1point3acres returned a non-JSON response");
+    return payload;
   }
+  throw new Error(`1point3acres failed (${lastStatus}): ${lastText.slice(0, 180)}`);
+}
+
+function parseJson(text: string): unknown {
   try {
     return JSON.parse(text) as unknown;
   } catch {
-    throw new Error("1point3acres returned a non-JSON response");
+    return undefined;
   }
+}
+
+function isRateLimited(status: number, text: string, payload: unknown): boolean {
+  if (status === 429) return true;
+  if (status >= 400 && RATE_LIMIT_TEXT.test(text)) return true;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+  const root = payload as Record<string, unknown>;
+  if (typeof root.errno !== "number" || root.errno === 0) return false;
+  return typeof root.msg === "string" && RATE_LIMIT_TEXT.test(root.msg);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function forumSortRequest(fid: number): string {
