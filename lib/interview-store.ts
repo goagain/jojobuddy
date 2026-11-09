@@ -225,14 +225,13 @@ export async function setInterviewCookie(id: string, userId: string, cookie: str
   await (await digests()).updateOne({ _id, userId }, { $set: { updatedAt }, $unset: { cookie: "" } });
 }
 
-export async function markInterviewCrawling(id: string, userId: string, cookie?: string) {
+export async function markInterviewCrawling(id: string, userId: string, cookie?: string, limit?: number) {
   const _id = objectId(id);
   if (!_id) return;
   if (cookie !== undefined) await setInterviewCookie(id, userId, cookie);
-  await (await digests()).updateOne(
-    { _id, userId },
-    { $set: { status: "crawling", updatedAt: new Date() }, $unset: { error: "" } },
-  );
+  const set: Record<string, unknown> = { status: "crawling", updatedAt: new Date() };
+  if (limit != null) set.limit = limit;
+  await (await digests()).updateOne({ _id, userId }, { $set: set, $unset: { error: "" } });
 }
 
 export async function saveInterviewResult(

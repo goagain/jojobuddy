@@ -35,6 +35,7 @@ export function InterviewView({ digestId }: { digestId: string }) {
   const [ok, setOk] = useState(false);
   const [cookie, setCookie] = useState("");
   const [clearCookie, setClearCookie] = useState(false);
+  const [limit, setLimit] = useState("");
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
@@ -80,28 +81,41 @@ export function InterviewView({ digestId }: { digestId: string }) {
     };
   }, [t, digest?.status]);
 
+  function parsedLimit(): number | undefined {
+    const text = limit.trim();
+    if (!text) return undefined;
+    const value = Number(text);
+    if (!Number.isInteger(value) || value < 1 || value > 80) throw new Error(t("interviewsLimitInvalid"));
+    return value;
+  }
+
   async function recrawl(event?: React.FormEvent) {
     event?.preventDefault();
     setBusy(true);
     setError(null);
     try {
+      const count = parsedLimit();
       const response = await fetch(`/api/interviews/${digestId}/crawl`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          event
+        body: JSON.stringify({
+          ...(event
             ? {
                 cookie: cookie.trim() || undefined,
                 clearCookie,
               }
-            : {},
-        ),
+            : {}),
+          ...(count != null ? { limit: count } : {}),
+        }),
       });
       const payload = await readResponseJson<{ error?: string }>(response, "Interviews API");
       if (!response.ok) throw new Error(payload.error ?? t("interviewsReadFail"));
       setCookie("");
       setClearCookie(false);
-      setDigest((current) => (current ? { ...current, status: "crawling", error: undefined } : current));
+      setLimit("");
+      setDigest((current) =>
+        current ? { ...current, status: "crawling", error: undefined, limit: count ?? current.limit } : current,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : t("interviewsReadFail"));
     } finally {
@@ -262,6 +276,19 @@ export function InterviewView({ digestId }: { digestId: string }) {
           </section>
 
           <form onSubmit={(event) => void recrawl(event)} className="panel grid max-w-2xl gap-3">
+            <label className="field-label">
+              <span>{t("interviewsLimit")}</span>
+              <input
+                type="number"
+                min={1}
+                max={80}
+                inputMode="numeric"
+                value={limit}
+                placeholder={digest.limit ? String(digest.limit) : "40"}
+                onChange={(event) => setLimit(event.target.value)}
+              />
+              <span className="text-xs font-normal muted">{t("interviewsLimitHint")}</span>
+            </label>
             <label className="field-label">
               <span>{t("interviewsCookie")}</span>
               <textarea

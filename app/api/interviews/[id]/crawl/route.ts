@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const crawlSchema = z.object({
   cookie: z.string().optional(),
   clearCookie: z.boolean().optional(),
+  limit: z.number().int().min(1).max(80).optional(),
 });
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -23,7 +24,7 @@ export async function POST(request: Request, context: Ctx) {
     if (!digest) return NextResponse.json({ error: "Interview digest not found" }, { status: 404 });
     const body = crawlSchema.parse(await request.json().catch(() => ({})));
     const cookie = body.clearCookie ? "" : body.cookie ? sanitizeCookie(body.cookie) : undefined;
-    await markInterviewCrawling(id, auth.user.id, cookie);
+    await markInterviewCrawling(id, auth.user.id, cookie, body.limit);
     const job = await enqueueWork({
       userId: auth.user.id,
       type: "crawl_interview",

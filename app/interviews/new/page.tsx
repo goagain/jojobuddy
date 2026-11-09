@@ -16,7 +16,7 @@ export default function NewInterviewPage() {
   const [companySlug, setCompanySlug] = useState("");
   const [suggestions, setSuggestions] = useState<{ identifier: string; name: string }[]>([]);
   const [forumUrl, setForumUrl] = useState(DEFAULT_FORUM);
-  const [limit, setLimit] = useState(40);
+  const [limit, setLimit] = useState("");
   const [cookie, setCookie] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,6 +25,12 @@ export default function NewInterviewPage() {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    const count = limit.trim() ? Number(limit) : undefined;
+    if (count != null && (!Number.isInteger(count) || count < 1 || count > 80)) {
+      setError(t("interviewsLimitInvalid"));
+      setBusy(false);
+      return;
+    }
     try {
       const response = await fetch("/api/interviews", {
         method: "POST",
@@ -33,7 +39,7 @@ export default function NewInterviewPage() {
           company,
           companySlug: companySlug || undefined,
           forumUrl: forumUrl.trim() || undefined,
-          limit,
+          limit: count,
           cookie: cookie.trim() || undefined,
         }),
       });
@@ -124,10 +130,12 @@ export default function NewInterviewPage() {
             type="number"
             min={1}
             max={80}
-            required
+            inputMode="numeric"
             value={limit}
-            onChange={(event) => setLimit(Number(event.target.value))}
+            placeholder="40"
+            onChange={(event) => setLimit(event.target.value)}
           />
+          <span className="text-xs font-normal muted">{t("interviewsLimitDefaultHint")}</span>
         </label>
         <label className="field-label">
           <span>{t("interviewsCookie")}</span>
